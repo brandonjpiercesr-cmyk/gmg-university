@@ -1,0 +1,27 @@
+{
+  "name": "gmg-university-v5",
+  "version": "5.0.0",
+  "description": "GMG University v5 ECHO - ABA-Powered Lane-Pierce Fellowship Training",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview --port $PORT --host"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "firebase": "^10.12.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "vite": "^5.4.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

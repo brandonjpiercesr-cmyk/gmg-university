@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>GMG University | Lane-Pierce Fellowship</title>
+    <meta name="description" content="ABA-powered learning platform for the Lane-Pierce Fellowship nonprofit fundraising program" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: #f59e0b;
+      }
+      .loading-orb {
+        width: 80px;
+        height: 80px;
+        background: radial-gradient(circle at 30% 30%, #a78bfa, #8b5cf6, #7c3aed);
+        border-radius: 50%;
+        animation: pulse 2s ease-in-out infinite, morph 4s ease-in-out infinite;
+        filter: blur(0.5px);
+        box-shadow: 0 0 40px rgba(139, 92, 246, 0.4);
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.05); opacity: 1; }
+      }
+      @keyframes morph {
+        0%, 100% { border-radius: 50%; }
+        25% { border-radius: 45% 55% 55% 45%; }
+        50% { border-radius: 55% 45% 45% 55%; }
+        75% { border-radius: 45% 55% 45% 55%; }
+      }
+      .loading-text {
+        margin-top: 24px;
+        font-size: 14px;
+        letter-spacing: 0.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="loading-screen">
+        <div class="loading-orb"></div>
+        <p class="loading-text">Loading GMG University...</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
