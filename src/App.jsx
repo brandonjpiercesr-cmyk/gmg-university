@@ -1,8 +1,9 @@
-// GMG UNIVERSITY v5.4.0 - FAST MODE + FALLBACK
+// GMG UNIVERSITY v5.5.0 - REAL CURRICULUM + AIR CONTEXT
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { V1_CONTENT, V2_CONTENT, V3_CONTENT, CURRICULUM_TITLES } from './curriculum';
 
 const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", authDomain: "gmg-university.firebaseapp.com", projectId: "gmg-university", storageBucket: "gmg-university.firebasestorage.app", messagingSenderId: "85247972370", appId: "1:85247972370:web:18e62a01313037292d74cb" };
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app), googleProvider = new GoogleAuthProvider();
@@ -50,98 +51,30 @@ const ABAOrb = ({ size = 200, state = 'idle' }) => {
   return <canvas ref={ref} style={{width:size,height:size}}/>;
 };
 
-// LESSON CONTENT - so we don't need AIR to generate it
-const LESSON_CONTENT = {
-  1: { title: 'Four Sources of Money', content: `Welcome to Day 1 of the Lane-Pierce Fellowship.
+// Get content for a day
+const getContent = (vol, day) => {
+  if (vol === 'v1') return V1_CONTENT[day];
+  if (vol === 'v2') return V2_CONTENT[day];
+  if (vol === 'v3') return V3_CONTENT[day];
+  return null;
+};
 
-Today we cover the Four Sources of Money for nonprofits:
-
-1. **Individual Donations** (typically 70-80% of giving)
-   - Major gifts, annual fund, monthly giving, planned giving
-   
-2. **Foundation Grants** (typically 15-20%)
-   - Private foundations, community foundations, corporate foundations
-   
-3. **Corporate Giving** (typically 5-10%)
-   - Sponsorships, cause marketing, employee matching, in-kind donations
-   
-4. **Government Grants** (varies widely)
-   - Federal, state, local contracts and grants
-
-The key insight: Individual donors are the foundation. Everything else is supplementary.
-
-What questions do you have about these four sources?` },
-  2: { title: 'Why People Give', content: `Day 2: The Psychology of Giving
-
-People give for seven core reasons:
-
-1. **Connection** - They feel personally connected to the cause
-2. **Social Proof** - Others they respect are giving
-3. **Identity** - Giving aligns with who they are
-4. **Legacy** - They want to leave a lasting impact
-5. **Guilt Relief** - They want to "do their part"
-6. **Tax Benefits** - Strategic financial planning
-7. **Being Asked** - The most common reason people don't give? Nobody asked.
-
-The fundraiser's job: Discover which motivation resonates, then make the ask.
-
-Which of these motivations have you seen in donors you've worked with?` },
-  3: { title: 'The Donor Lifecycle', content: `Day 3: The Donor Lifecycle
-
-Every donor moves through a journey:
-
-**1. IDENTIFICATION** - Finding potential donors
-- Who cares about your mission?
-- Where do they gather?
-
-**2. CULTIVATION** - Building the relationship
-- Share impact stories
-- Invite to events
-- Make them feel like insiders
-
-**3. SOLICITATION** - Making the ask
-- Right amount, right timing, right asker
-- Always specific, never vague
-
-**4. STEWARDSHIP** - Thanking and retaining
-- Thank within 48 hours
-- Report impact
-- Upgrade over time
-
-The goal: Move donors from first gift to legacy giving.
-
-Where does your organization struggle most in this lifecycle?` },
-  4: { title: 'The Donor Pyramid', content: `Day 4: The Donor Pyramid
-
-Visualize your donors as a pyramid:
-
-**TOP: Planned Giving** (5-10 donors)
-- Bequests, trusts, annuities
-- Cultivated over years
-
-**UPPER: Major Gifts** (50-100 donors)  
-- $1,000-$100,000+ gifts
-- Personal relationships required
-
-**MIDDLE: Mid-Level** (500-1,000 donors)
-- $250-$999 gifts
-- Often overlooked
-
-**BASE: Annual Fund** (thousands)
-- Under $250 gifts
-- Entry point for all donors
-
-**Key stat:** 80-90% of dollars come from 10-20% of donors.
-
-Your job: Move donors UP the pyramid, not just add to the base.
-
-How does your current donor base map to this pyramid?` }
+// Format content for display
+const formatLessonContent = (content) => {
+  if (!content) return "Loading...";
+  let text = `**${content.title}**\n\n`;
+  content.sections?.forEach(s => {
+    text += `**${s.h}**\n${s.c}\n\n`;
+  });
+  if (content.exercise) text += `**Today's Exercise**\n${content.exercise}\n\n`;
+  if (content.keyTakeaways) text += `**Key Takeaways**\n${content.keyTakeaways.map(t => `• ${t}`).join('\n')}`;
+  return text;
 };
 
 const CUR = {
-  v1: { title:'Fundraising Foundations', days:30, desc:'Master nonprofit fundraising', lessons:Array.from({length:30},(_,i)=>({day:i+1,title:['Four Sources of Money','Why People Give','Donor Lifecycle','Donor Pyramid','Quiz 1-4','Annual Giving','Foundation Grants','Corporate Partners','Earned Revenue','Quiz 6-9','Board Responsibility','Grant Research','Donor Retention','Systems & Tools','Quiz 11-14','Grant Writing','Major Donors','Planned Giving','Sponsorship','Quiz 16-19','Digital Fundraising','Storytelling','Capital Campaigns','Monthly Giving','Quiz 21-24','Board Development','Prospect Research','Metrics','Strategic Planning','Capstone'][i],type:(i+1)%5===0?'quiz':i===29?'capstone':'lesson'}))},
-  v2: { title:'The GMG Way', days:30, desc:'GMG methodology', lessons:Array.from({length:30},(_,i)=>({day:i+1,title:`GMG Day ${i+1}`,type:(i+1)%5===0?'quiz':i===29?'capstone':'lesson'}))},
-  v3: { title:'CPP Model', days:15, desc:'LAYERED Assessment', lessons:Array.from({length:15},(_,i)=>({day:i+1,title:`Assessment ${i+1}`,type:i===14?'capstone':'assessment'}))}
+  v1: { title:'Fundraising Foundations', days:30, desc:'Master nonprofit fundraising' },
+  v2: { title:'The GMG Way', days:30, desc:'GMG methodologies' },
+  v3: { title:'CPP Model', days:15, desc:'Consultant Pipeline' }
 };
 
 const Glass = ({children, className=''}) => <div className={`backdrop-blur-xl bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 ${className}`}>{children}</div>;
@@ -162,30 +95,85 @@ export default function App() {
   const loadCohort=async()=>{try{const q=query(collection(db,'users'),orderBy('xp','desc'),limit(10)),s=await getDocs(q);setCohort(s.docs.map(d=>({id:d.id,...d.data()})))}catch(e){console.error(e)}};
   const signIn=()=>signInWithPopup(auth,googleProvider);
   const signOff=()=>signOut(auth).then(()=>setView('home'));
-  const canStart=l=>{const k=`${vol}-d${l.day}`;if(profile?.completedDays?.includes(k))return{ok:false,msg:'Done'};if(l.type==='quiz'&&!profile?.completedDays?.includes(`${vol}-d${l.day-1}`))return{ok:false,msg:'Complete previous'};if(today>=3)return{ok:false,msg:'Daily limit'};return{ok:true}};
+  
+  const getLessons = (v) => {
+    const titles = CURRICULUM_TITLES[v] || [];
+    return Array.from({length: CUR[v]?.days || 0}, (_, i) => ({
+      day: i + 1,
+      title: titles[i] || `Day ${i + 1}`,
+      type: (i + 1) % 5 === 0 ? 'quiz' : i === (CUR[v]?.days - 1) ? 'capstone' : 'lesson'
+    }));
+  };
+  
+  const canStart = (l) => {
+    const k = `${vol}-d${l.day}`;
+    if (profile?.completedDays?.includes(k)) return { ok: false, msg: 'Done' };
+    if (l.type === 'quiz' && !profile?.completedDays?.includes(`${vol}-d${l.day - 1}`)) return { ok: false, msg: 'Complete previous' };
+    if (today >= 3) return { ok: false, msg: 'Daily limit' };
+    return { ok: true };
+  };
 
-  const sendABA = async (m, start = false) => {
-    setTyping(true); setOrb('thinking'); 
+  // Start lesson - load content INSTANTLY, then AIR adds personality
+  const startLesson = (v, d) => {
+    const lessons = getLessons(v);
+    const l = lessons.find(x => x.day === d);
+    const c = canStart(l);
+    if (!c.ok) { alert(c.msg); return; }
     
-    // For lesson start, use pre-built content if available (FAST)
-    if (start && LESSON_CONTENT[day]) {
-      setStatus('Loading lesson...');
-      await new Promise(r => setTimeout(r, 800)); // Small delay for effect
-      const lessonText = `${profile?.name?.split(' ')[0] || 'Fellow'}, welcome.\n\n${LESSON_CONTENT[day].content}`;
-      setMsgs([{ role: 'user', content: m }, { role: 'assistant', content: lessonText }]);
-      setOrb('speaking'); setProg(15); setStatus('');
+    setVol(v);
+    setDay(d);
+    setMsgs([]);
+    setProg(0);
+    setView('lesson');
+    
+    // Get the real curriculum content
+    const content = getContent(v, d);
+    
+    if (content) {
+      // INSTANT: Show the real content immediately
+      const lessonText = formatLessonContent(content);
+      const greeting = `${profile?.name?.split(' ')[0] || 'Fellow'}, welcome to Day ${d}.\n\n${lessonText}`;
+      
+      setMsgs([
+        { role: 'user', content: "I'm ready." },
+        { role: 'assistant', content: greeting }
+      ]);
+      setProg(20);
+      setOrb('speaking');
       setTimeout(() => setOrb('idle'), 2000);
-      setTyping(false);
-      return;
+    } else {
+      // Fallback to AIR if no pre-built content
+      setTimeout(() => sendABA("I'm ready for today's lesson.", true), 300);
     }
+  };
+
+  // Send message to AIR - with curriculum as context
+  const sendABA = async (m, start = false) => {
+    setTyping(true); setOrb('thinking'); setStatus('ABA is thinking...');
     
-    // For follow-up questions, use AIR with fast mode
-    setStatus('ABA is thinking...');
-    const les = CUR[vol]?.lessons.find(x => x.day === day);
+    const content = getContent(vol, day);
+    const lessonContext = content ? formatLessonContent(content) : '';
     
+    // Build system prompt with REAL curriculum
+    const systemPrompt = `You are ABA, the AI professor for GMG University's Lane-Pierce Fellowship.
+
+CURRENT LESSON: ${CUR[vol]?.title} - Day ${day}: ${content?.title || 'Lesson'}
+STUDENT: ${profile?.name || 'Fellow'}
+
+HERE IS THE ACTUAL LESSON CONTENT (use this to teach and answer questions):
+${lessonContext}
+
+INSTRUCTIONS:
+${start ? '- Greet the student by first name. Present the lesson content conversationally. Ask if they have questions.' : '- Answer their question based on the lesson content above. Be conversational and helpful.'}
+- Be warm but professional
+- No emojis
+- Keep responses focused and clear
+- Reference specific concepts from the lesson when relevant
+- We Are All ABA`;
+
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000);
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       
       const response = await fetch(ABA_AIR, {
         method: 'POST',
@@ -195,9 +183,11 @@ export default function App() {
           user_id: profile?.email || 'guest',
           channel: 'gmg_university',
           context: { 
-            lesson: les?.title,
-            mode: 'fast', // Tell AIR to skip web searches
-            systemPrompt: `You are ABA teaching GMG University. Lesson: ${les?.title}. Student: ${profile?.name}. Answer their question directly and concisely. Do NOT use web search. Do NOT write long responses. 2-3 paragraphs max. No emojis.`
+            lesson: content?.title,
+            volume: vol,
+            day: day,
+            systemPrompt: systemPrompt,
+            mode: 'teaching' // Tell AIR this is teaching mode
           }
         }),
         signal: controller.signal
@@ -208,21 +198,24 @@ export default function App() {
       const resp = data.response || data.message || "Let me think about that...";
       
       setMsgs(p => [...p, { role: 'user', content: m }, { role: 'assistant', content: resp }]);
-      setOrb('speaking'); setProg(p => Math.min(p + 15, 100)); setStatus('');
+      setOrb('speaking'); 
+      setProg(p => Math.min(p + 15, 100)); 
+      setStatus('');
       if (voice) speak(resp);
       setTimeout(() => setOrb('idle'), 2000);
       
     } catch (error) {
       console.error('ABA Error:', error);
-      setMsgs(p => [...p, { role: 'user', content: m }, { role: 'assistant', content: "I'm having trouble connecting. Please try again or continue to the next question." }]);
-      setOrb('idle'); setStatus('');
+      setMsgs(p => [...p, { role: 'user', content: m }, { role: 'assistant', content: "I'm having trouble connecting. Please try again." }]);
+      setOrb('idle'); 
+      setStatus('');
     } finally {
       setTyping(false);
     }
   };
 
   const speak=async t=>{try{const r=await fetch(TTS_URL,{method:'POST',headers:{'Content-Type':'application/json','xi-api-key':TTS_KEY},body:JSON.stringify({text:t.substring(0,1000),model_id:'eleven_turbo_v2_5',voice_settings:{stability:0.5,similarity_boost:0.75}})});if(audioRef.current){audioRef.current.src=URL.createObjectURL(await r.blob());audioRef.current.play()}}catch(e){console.error(e)}};
-  const startLesson=(v,d)=>{const l=CUR[v]?.lessons.find(x=>x.day===d);const c=canStart(l);if(!c.ok){alert(c.msg);return}setVol(v);setDay(d);setMsgs([]);setProg(0);setView('lesson');setTimeout(()=>sendABA("I'm ready.",true),300)};
+  
   const complete=async()=>{if(!user)return;const k=`${vol}-d${day}`;try{const ref=doc(db,'users',user.uid);await updateDoc(ref,{completedDays:arrayUnion(k),xp:(profile.xp||0)+100,lessonsLog:arrayUnion({day:k,date:new Date().toISOString()})});setProfile(p=>({...p,completedDays:[...(p.completedDays||[]),k],xp:(p.xp||0)+100}));setToday(p=>p+1);await loadCohort();setView('learn')}catch(e){console.error(e)}};
   const send=()=>{if(!input.trim()||typing)return;sendABA(input);setInput('')};
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[msgs]);
@@ -231,14 +224,14 @@ export default function App() {
 
   if(!user)return(<div className="min-h-screen bg-black flex items-center justify-center p-6"><KenBurns src={BG.pinkSmoke} opacity={55}/><div className="relative z-10 max-w-md w-full"><div className="text-center mb-10"><ABAOrb size={130} state="idle"/><h1 className="text-4xl font-extralight text-white mt-8">GMG <span className="font-light text-purple-400">University</span></h1><p className="text-white/50 mt-2 font-light">Lane-Pierce Fellowship</p><div className="flex items-center justify-center gap-2 mt-6"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"/><span className="text-emerald-400/80 text-xs">{air?`${air.agents} AGENTS`:'CONNECTING'}</span></div></div><Glass className="mb-8"><div className="space-y-4">{[{t:'75 Days of Training',c:'bg-purple-500'},{t:'ABA-Powered Learning',c:'bg-amber-500'},{t:'Individual Education Plan',c:'bg-emerald-500'},{t:'Voice Mode',c:'bg-cyan-500'}].map((x,i)=>(<div key={i} className="flex items-center gap-4"><div className={`w-2.5 h-2.5 rounded-full ${x.c}`}/><span className="text-white/70 text-sm font-light">{x.t}</span></div>))}</div></Glass><button onClick={signIn} className="w-full bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-medium py-4 rounded-xl shadow-lg shadow-purple-500/30 flex items-center justify-center gap-3"><svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>Continue with Google</button><p className="text-center text-white/20 text-xs mt-10 tracking-[0.2em]">WE ARE ALL ABA</p></div></div>);
 
-  if(view==='lesson'&&day){const les=CUR[vol]?.lessons.find(l=>l.day===day);return(<div className="min-h-screen bg-black flex flex-col"><KenBurns src={BG.embers} opacity={50}/><header className="relative z-10 backdrop-blur-xl bg-black/40 border-b border-white/10 px-6 py-4"><div className="flex items-center justify-between max-w-4xl mx-auto"><button onClick={()=>setView('learn')} className="text-white/60 hover:text-white flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Exit</button><div className="text-center"><p className="text-purple-400 text-xs tracking-widest">DAY {day}</p><p className="text-white font-light">{les?.title}</p></div><button onClick={()=>setVoice(!voice)} className={`w-10 h-10 rounded-xl flex items-center justify-center ${voice?'bg-purple-500/30 text-purple-400':'bg-white/10 text-white/50'}`}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg></button></div><div className="mt-4 max-w-4xl mx-auto h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-purple-500 to-amber-500 transition-all" style={{width:`${prog}%`}}/></div></header><div className="relative z-10 flex-1 overflow-y-auto p-6"><div className="max-w-3xl mx-auto space-y-6">{msgs.map((m,i)=>(<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-5 py-4 ${m.role==='user'?'bg-purple-600/40 border border-purple-500/40':'bg-black/40 backdrop-blur-xl border border-white/10'}`}>{m.role==='assistant'&&<div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/10"><ABAOrb size={28} state={orb}/><span className="text-purple-400 text-xs font-medium">ABA</span></div>}<p className="text-white/90 text-sm leading-relaxed font-light whitespace-pre-wrap">{m.content}</p></div></div>))}{typing&&(<div className="flex justify-start"><div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-4"><div className="flex items-center gap-3 mb-3"><ABAOrb size={28} state="thinking"/><span className="text-amber-400 text-xs">{status||'THINKING'}</span></div><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-amber-400/60 rounded-full animate-bounce" style={{animationDelay:`${i*150}ms`}}/>)}</div></div></div>)}<div ref={endRef}/></div></div><div className="relative z-10 backdrop-blur-xl bg-black/40 border-t border-white/10 p-6"><div className="max-w-3xl mx-auto flex gap-4"><input type="text" value={input} onChange={e=>setInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&send()} placeholder="Ask a question..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50 font-light"/><button onClick={send} disabled={!input.trim()||typing} className="bg-purple-600 hover:bg-purple-500 disabled:bg-white/10 disabled:text-white/30 text-white font-medium px-8 py-4 rounded-xl transition-colors">Send</button></div>{prog>=70&&<div className="max-w-3xl mx-auto mt-4"><button onClick={complete} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-4 rounded-xl">Complete · +100 XP</button></div>}</div><audio ref={audioRef}/></div>)}
+  if(view==='lesson'&&day){const content=getContent(vol,day);return(<div className="min-h-screen bg-black flex flex-col"><KenBurns src={BG.embers} opacity={50}/><header className="relative z-10 backdrop-blur-xl bg-black/40 border-b border-white/10 px-6 py-4"><div className="flex items-center justify-between max-w-4xl mx-auto"><button onClick={()=>setView('learn')} className="text-white/60 hover:text-white flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Exit</button><div className="text-center"><p className="text-purple-400 text-xs tracking-widest">DAY {day}</p><p className="text-white font-light">{content?.title || CURRICULUM_TITLES[vol]?.[day-1] || `Day ${day}`}</p></div><button onClick={()=>setVoice(!voice)} className={`w-10 h-10 rounded-xl flex items-center justify-center ${voice?'bg-purple-500/30 text-purple-400':'bg-white/10 text-white/50'}`}><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg></button></div><div className="mt-4 max-w-4xl mx-auto h-1 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-purple-500 to-amber-500 transition-all" style={{width:`${prog}%`}}/></div></header><div className="relative z-10 flex-1 overflow-y-auto p-6"><div className="max-w-3xl mx-auto space-y-6">{msgs.map((m,i)=>(<div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`max-w-[85%] rounded-2xl px-5 py-4 ${m.role==='user'?'bg-purple-600/40 border border-purple-500/40':'bg-black/40 backdrop-blur-xl border border-white/10'}`}>{m.role==='assistant'&&<div className="flex items-center gap-3 mb-3 pb-3 border-b border-white/10"><ABAOrb size={28} state={orb}/><span className="text-purple-400 text-xs font-medium">ABA</span></div>}<p className="text-white/90 text-sm leading-relaxed font-light whitespace-pre-wrap">{m.content}</p></div></div>))}{typing&&(<div className="flex justify-start"><div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-4"><div className="flex items-center gap-3 mb-3"><ABAOrb size={28} state="thinking"/><span className="text-amber-400 text-xs">{status||'THINKING'}</span></div><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-amber-400/60 rounded-full animate-bounce" style={{animationDelay:`${i*150}ms`}}/>)}</div></div></div>)}<div ref={endRef}/></div></div><div className="relative z-10 backdrop-blur-xl bg-black/40 border-t border-white/10 p-6"><div className="max-w-3xl mx-auto flex gap-4"><input type="text" value={input} onChange={e=>setInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&send()} placeholder="Ask a question..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder-white/30 focus:outline-none focus:border-purple-500/50 font-light"/><button onClick={send} disabled={!input.trim()||typing} className="bg-purple-600 hover:bg-purple-500 disabled:bg-white/10 disabled:text-white/30 text-white font-medium px-8 py-4 rounded-xl transition-colors">Send</button></div>{prog>=50&&<div className="max-w-3xl mx-auto mt-4"><button onClick={complete} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-4 rounded-xl">Complete Lesson +100 XP</button></div>}</div><audio ref={audioRef}/></div>)}
 
   if(view==='kudos')return(<div className="min-h-screen bg-black p-8"><KenBurns src={BG.nebula} opacity={50}/><div className="relative z-10 max-w-2xl mx-auto"><button onClick={()=>setView('home')} className="text-white/50 hover:text-white mb-8 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Back</button><h1 className="text-3xl font-extralight text-white mb-8">Kudos Board</h1><Glass>{cohort.map((m,i)=>(<div key={m.id} className={`flex items-center gap-4 p-4 rounded-xl mb-3 ${i===0?'bg-amber-500/20 border border-amber-500/30':'bg-white/5'}`}><span className={`text-2xl font-bold w-8 ${i===0?'text-amber-400':'text-white/30'}`}>{i+1}</span><img src={m.photoURL||`https://ui-avatars.com/api/?name=${m.name||'U'}&background=8b5cf6&color=fff`} className="w-10 h-10 rounded-xl"/><div className="flex-1"><p className="text-white">{m.name||'Fellow'}</p><p className="text-white/40 text-sm">{m.completedDays?.length||0} lessons</p></div><p className="text-purple-400 font-bold">{m.xp||0} XP</p></div>))}{!cohort.length&&<p className="text-white/30 text-center py-8">No members yet</p>}</Glass></div></div>);
 
   if(view==='iep')return(<div className="min-h-screen bg-black p-8"><KenBurns src={BG.eventHorizon} opacity={45}/><div className="relative z-10 max-w-2xl mx-auto"><button onClick={()=>setView('home')} className="text-white/50 hover:text-white mb-8 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Back</button><h1 className="text-3xl font-extralight text-white mb-8">Education Plan</h1><div className="space-y-6"><Glass><div className="flex items-center gap-3 mb-4"><div className="w-3 h-3 bg-emerald-500 rounded-full"/><h3 className="text-emerald-400 font-medium">Strengths</h3></div>{profile?.iep?.strengths?.length?<ul className="space-y-2">{profile.iep.strengths.map((s,i)=><li key={i} className="text-white/70 text-sm">{s}</li>)}</ul>:<p className="text-white/30 text-sm">Complete lessons to identify</p>}</Glass><Glass><div className="flex items-center gap-3 mb-4"><div className="w-3 h-3 bg-amber-500 rounded-full"/><h3 className="text-amber-400 font-medium">Development Areas</h3></div>{profile?.iep?.gaps?.length?<ul className="space-y-2">{profile.iep.gaps.map((g,i)=><li key={i} className="text-white/70 text-sm">{g}</li>)}</ul>:<p className="text-white/30 text-sm">ABA will identify areas</p>}</Glass></div></div></div>);
 
-  if(view==='learn'){const v=CUR[vol],done=profile?.completedDays||[];return(<div className="min-h-screen bg-black p-8"><KenBurns src={BG.wetCity} opacity={45}/><div className="relative z-10 max-w-4xl mx-auto"><button onClick={()=>setView('home')} className="text-white/50 hover:text-white mb-8 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Back</button><div className="flex gap-3 mb-8 flex-wrap">{Object.entries(CUR).map(([k,x])=>(<button key={k} onClick={()=>setVol(k)} className={`px-6 py-3 rounded-xl font-medium ${vol===k?'bg-purple-600 text-white':'bg-white/10 text-white/60 hover:text-white'}`}>{x.title}</button>))}</div><Glass className="mb-8"><h2 className="text-2xl font-extralight text-white mb-2">{v.title}</h2><p className="text-white/50">{v.desc}</p></Glass>{today>=2&&<div className="mb-6 p-4 bg-amber-500/20 border border-amber-500/30 rounded-xl"><p className="text-amber-400 text-sm">{today>=3?'Daily limit. Return tomorrow.':`${3-today} remaining today.`}</p></div>}<div className="grid grid-cols-5 lg:grid-cols-6 gap-3">{v.lessons.map(l=>{const k=`${vol}-d${l.day}`,dn=done.includes(k),isQ=l.type==='quiz',isCap=l.type==='capstone',c=canStart(l);return(<button key={l.day} onClick={()=>c.ok&&startLesson(vol,l.day)} disabled={!c.ok&&!dn} title={l.title} className={`aspect-square rounded-xl flex flex-col items-center justify-center border ${dn?'bg-emerald-500/20 border-emerald-500/40 text-emerald-400':isQ?'bg-purple-500/20 border-purple-500/40 text-purple-400':isCap?'bg-amber-500/20 border-amber-500/40 text-amber-400':!c.ok?'bg-white/5 border-white/10 text-white/20':'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}><span className="text-lg font-medium">{l.day}</span>{(dn||isQ||isCap)&&<span className="text-[9px] mt-1">{dn?'DONE':isQ?'QUIZ':'FINAL'}</span>}</button>)})}</div></div></div>)}
+  if(view==='learn'){const lessons=getLessons(vol),done=profile?.completedDays||[];return(<div className="min-h-screen bg-black p-8"><KenBurns src={BG.wetCity} opacity={45}/><div className="relative z-10 max-w-4xl mx-auto"><button onClick={()=>setView('home')} className="text-white/50 hover:text-white mb-8 flex items-center gap-2"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>Back</button><div className="flex gap-3 mb-8 flex-wrap">{Object.entries(CUR).map(([k,x])=>(<button key={k} onClick={()=>setVol(k)} className={`px-6 py-3 rounded-xl font-medium ${vol===k?'bg-purple-600 text-white':'bg-white/10 text-white/60 hover:text-white'}`}>{x.title}</button>))}</div><Glass className="mb-8"><h2 className="text-2xl font-extralight text-white mb-2">{CUR[vol].title}</h2><p className="text-white/50">{CUR[vol].desc}</p></Glass>{today>=2&&<div className="mb-6 p-4 bg-amber-500/20 border border-amber-500/30 rounded-xl"><p className="text-amber-400 text-sm">{today>=3?'Daily limit. Return tomorrow.':`${3-today} remaining today.`}</p></div>}<div className="grid grid-cols-5 lg:grid-cols-6 gap-3">{lessons.map(l=>{const k=`${vol}-d${l.day}`,dn=done.includes(k),isQ=l.type==='quiz',isCap=l.type==='capstone',c=canStart(l);return(<button key={l.day} onClick={()=>c.ok&&startLesson(vol,l.day)} disabled={!c.ok&&!dn} title={l.title} className={`aspect-square rounded-xl flex flex-col items-center justify-center border ${dn?'bg-emerald-500/20 border-emerald-500/40 text-emerald-400':isQ?'bg-purple-500/20 border-purple-500/40 text-purple-400':isCap?'bg-amber-500/20 border-amber-500/40 text-amber-400':!c.ok?'bg-white/5 border-white/10 text-white/20':'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'}`}><span className="text-lg font-medium">{l.day}</span>{(dn||isQ||isCap)&&<span className="text-[9px] mt-1">{dn?'DONE':isQ?'QUIZ':'FINAL'}</span>}</button>)})}</div></div></div>)}
 
-  const cnt=profile?.completedDays?.length||0,tot=Object.values(CUR).reduce((s,v)=>s+v.lessons.length,0);
+  const cnt=profile?.completedDays?.length||0,tot=Object.values(CUR).reduce((s,v)=>s+v.days,0);
   return(<div className="min-h-screen bg-black p-8"><KenBurns src={BG.pinkSmoke} opacity={50}/><div className="relative z-10 max-w-3xl mx-auto"><div className="flex items-center gap-8 mb-12"><ABAOrb size={100} state="idle"/><div><h1 className="text-3xl font-extralight text-white">Welcome, <span className="text-purple-400">{profile?.name?.split(' ')[0]||'Fellow'}</span></h1><p className="text-white/50 font-light mt-1">{cnt===0?'Ready to begin?':`${tot-cnt} lessons remaining`}</p></div></div><div className="grid grid-cols-3 gap-4 mb-8">{[{l:'Completed',v:cnt},{l:'Streak',v:profile?.streak||0},{l:'XP',v:profile?.xp||0}].map((s,i)=>(<Glass key={i} className="text-center"><p className="text-3xl font-light text-white">{s.v}</p><p className="text-white/40 text-sm mt-1">{s.l}</p></Glass>))}</div><Glass className="mb-8"><div className="flex justify-between mb-3"><span className="text-white/60 text-sm">Progress</span><span className="text-purple-400">{Math.round((cnt/tot)*100)}%</span></div><div className="h-2 bg-white/10 rounded-full"><div className="h-full bg-gradient-to-r from-purple-500 to-amber-500 rounded-full" style={{width:`${(cnt/tot)*100}%`}}/></div></Glass><div className="grid grid-cols-2 gap-4 mb-4"><button onClick={()=>setView('learn')} className="bg-purple-600 hover:bg-purple-500 text-white font-medium py-5 rounded-xl text-lg">Continue Learning</button><button onClick={()=>setView('kudos')} className="bg-white/10 hover:bg-white/15 text-white font-medium py-5 rounded-xl">Kudos Board</button></div><div className="grid grid-cols-2 gap-4"><button onClick={()=>setView('iep')} className="bg-white/10 hover:bg-white/15 text-white/80 py-4 rounded-xl">My IEP</button><button onClick={signOff} className="bg-white/10 hover:bg-white/15 text-white/50 py-4 rounded-xl">Sign Out</button></div></div></div>);
 }
