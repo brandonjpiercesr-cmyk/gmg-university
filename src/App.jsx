@@ -1,4 +1,4 @@
-// GMG UNIVERSITY v6.3.0 - TYPEWRITER + BACKGROUNDS LOCKED
+// GMG UNIVERSITY v6.4.0 - BACKGROUNDS THAT ACTUALLY WORK
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
@@ -12,31 +12,13 @@ const AIR = 'https://abacia-services.onrender.com/api/air/process';
 const TTS = 'https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL';
 const TTS_KEY = 'sk_e0b48157805968dbb370f299b60e22001189bd85c3864040';
 
-// ============ 911 BACKGROUNDS - DO NOT REMOVE ============
+// 911 BACKGROUNDS
 const BG = {
   pinkSmoke: 'https://i.imgur.com/3RkebB2.jpeg',
   embers: 'https://i.imgur.com/9HZYnlX.png',
   nebula: 'https://i.imgur.com/nLBRQ82.jpeg',
-  wetCity: 'https://i.imgur.com/h8zNCw1.jpeg',
-  eventHorizon: 'https://i.imgur.com/A44TxCq.jpeg'
+  wetCity: 'https://i.imgur.com/h8zNCw1.jpeg'
 };
-
-// ============ 911 BACKGROUNDS COMPONENT - DO NOT REMOVE ============
-const KenBurns = ({ src }) => (
-  <div className="fixed inset-0 overflow-hidden" style={{ zIndex: -1 }}>
-    <div 
-      className="absolute bg-cover bg-center"
-      style={{ 
-        backgroundImage: `url(${src})`, 
-        inset: '-20%',
-        animation: 'ken 25s ease-in-out infinite alternate',
-        opacity: 0.85
-      }}
-    />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
-  </div>
-);
-// ============ END 911 BACKGROUNDS ============
 
 // LOGOS
 const LOGO = { gmg: 'https://i.imgur.com/qslzgTU.png', aba: 'https://i.imgur.com/0be7HCF.png' };
@@ -53,12 +35,52 @@ const I = {
   book: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M12 6.5a9 9 0 00-6-2.5c-1 0-2 .2-3 .5v14c1-.3 2-.5 3-.5a9 9 0 016 2.5 9 9 0 016-2.5c1 0 2 .2 3 .5v-14c-1-.3-2-.5-3-.5a9 9 0 00-6 2.5z"/></svg>
 };
 
-// Add keyframes
-if (!document.getElementById('kb-style')) {
-  const s = document.createElement('style'); s.id = 'kb-style';
-  s.textContent = `@keyframes ken { from { transform: scale(1) translate(0,0); } to { transform: scale(1.15) translate(-3%,-3%); } }`;
-  document.head.appendChild(s);
-}
+// 911 MOVING BACKGROUND - ACTUALLY WORKS
+const MovingBG = ({ src }) => {
+  return (
+    <>
+      <style>{`
+        @keyframes slowZoom {
+          0% { transform: scale(1) translate(0, 0); }
+          50% { transform: scale(1.1) translate(-2%, -1%); }
+          100% { transform: scale(1) translate(0, 0); }
+        }
+      `}</style>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+        overflow: 'hidden'
+      }}>
+        <img 
+          src={src} 
+          alt=""
+          style={{
+            position: 'absolute',
+            width: '120%',
+            height: '120%',
+            top: '-10%',
+            left: '-10%',
+            objectFit: 'cover',
+            animation: 'slowZoom 30s ease-in-out infinite',
+            opacity: 0.7
+          }}
+        />
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.1), rgba(0,0,0,0.5))'
+        }}/>
+      </div>
+    </>
+  );
+};
 
 const getC = (v, d) => ({ v1: V1_CONTENT, v2: V2_CONTENT, v3: V3_CONTENT }[v]?.[d]);
 const VOL = { v1: { t: 'Foundations', f: 'Fundraising Foundations', d: 30 }, v2: { t: 'GMG Way', f: 'The GMG Way', d: 30 }, v3: { t: 'CPP', f: 'CPP Model', d: 15 } };
@@ -72,33 +94,20 @@ const formatContent = (c, name) => {
   return txt;
 };
 
-// TYPEWRITER COMPONENT - makes text type in like ABA is speaking
-const Typewriter = ({ text, speed = 15, onDone }) => {
+// TYPEWRITER
+const Typewriter = ({ text, speed = 12, onDone }) => {
   const [displayed, setDisplayed] = useState('');
   const [done, setDone] = useState(false);
-  
   useEffect(() => {
     setDisplayed(''); setDone(false);
     let i = 0;
     const iv = setInterval(() => {
-      if (i < text.length) {
-        setDisplayed(text.substring(0, i + 1));
-        i++;
-      } else {
-        clearInterval(iv);
-        setDone(true);
-        onDone?.();
-      }
+      if (i < text.length) { setDisplayed(text.substring(0, i + 1)); i++; }
+      else { clearInterval(iv); setDone(true); onDone?.(); }
     }, speed);
     return () => clearInterval(iv);
   }, [text]);
-
-  return (
-    <p className="text-white/90 text-[15px] leading-relaxed whitespace-pre-wrap">
-      {displayed}
-      {!done && <span className="inline-block w-2 h-4 bg-violet-400 ml-1 animate-pulse"/>}
-    </p>
-  );
+  return <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{displayed}{!done && <span style={{ display: 'inline-block', width: 8, height: 18, background: '#a78bfa', marginLeft: 4, animation: 'pulse 1s infinite' }}/>}</p>;
 };
 
 export default function App() {
@@ -130,7 +139,6 @@ export default function App() {
     return null;
   };
 
-  // Start lesson - content types in like ABA is speaking
   const startLesson = (v, d) => {
     setVol(v); setDay(d); setView('lesson'); setMsgs([]);
     const c = getC(v, d), name = profile?.name?.split(' ')[0] || 'there';
@@ -145,18 +153,17 @@ export default function App() {
     setMsgs(p => [...p, { aba: false, text: msg }]);
     const c = getC(vol, day);
     let data = c ? `${c.title}: ` : ''; c?.sections?.forEach(s => { data += `${s.h} - ${s.c.substring(0, 300)} `; });
-
     try {
       const r = await fetch(AIR, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, user_id: profile?.email, channel: 'gmg_v6',
-          context: { systemPrompt: `You are ABA, AI professor at GMG University. Student: ${profile?.name?.split(' ')[0]}. Lesson: ${c?.title}. Content: ${data}. Answer helpfully. Be warm. No markdown.` }
+          context: { systemPrompt: `You are ABA, AI professor. Student: ${profile?.name?.split(' ')[0]}. Lesson: ${c?.title}. Content: ${data}. Answer helpfully. Be warm. No markdown.` }
         })
       });
       const res = await r.json();
       setIsTyping(true);
-      setMsgs(p => [...p, { aba: true, text: res.response || res.message || "Let me help with that...", typing: true }]);
+      setMsgs(p => [...p, { aba: true, text: res.response || res.message || "Let me help...", typing: true }]);
       if (voice) speak(res.response);
-    } catch { setMsgs(p => [...p, { aba: true, text: "Connection issue. Try again?", typing: true }]); }
+    } catch { setMsgs(p => [...p, { aba: true, text: "Connection issue. Try again?" }]); }
     finally { setTyping(false); }
   };
 
@@ -171,107 +178,90 @@ export default function App() {
     setView('home');
   };
 
-  // LOADING - WITH BACKGROUND
-  if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <KenBurns src={BG.pinkSmoke}/>
-      <img src={LOGO.aba} alt="ABA" className="w-20 h-20 animate-pulse relative z-10"/>
-    </div>
-  );
+  const glassBg = { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 16 };
+  const glassCard = { ...glassBg, padding: 16 };
 
-  // LOGIN - WITH BACKGROUND
+  if (loading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MovingBG src={BG.pinkSmoke}/><img src={LOGO.aba} alt="ABA" style={{ width: 80, height: 80, position: 'relative', zIndex: 1 }}/></div>;
+
   if (!user) return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
-      <KenBurns src={BG.pinkSmoke}/>
-      <div className="relative z-10 flex flex-col items-center">
-        <img src={LOGO.gmg} alt="GMG" className="w-32 h-32 mb-6"/>
-        <h1 className="text-3xl font-extralight text-white tracking-tight">GMG <span className="text-violet-400">University</span></h1>
-        <p className="text-white/40 text-sm mt-2">Lane-Pierce Fellowship</p>
-        <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())} className="mt-10 w-full max-w-xs bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white py-4 rounded-2xl font-medium shadow-lg shadow-violet-500/25">Continue with Google</button>
-        <p className="text-white/20 text-xs mt-8 tracking-widest">WE ARE ALL ABA</p>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <MovingBG src={BG.pinkSmoke}/>
+      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+        <img src={LOGO.gmg} alt="GMG" style={{ width: 120, height: 120, marginBottom: 24 }}/>
+        <h1 style={{ fontSize: 28, fontWeight: 300, color: 'white' }}>GMG <span style={{ color: '#a78bfa' }}>University</span></h1>
+        <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Lane-Pierce Fellowship</p>
+        <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())} style={{ marginTop: 40, width: '100%', maxWidth: 280, background: 'linear-gradient(to right, #7c3aed, #c026d3)', color: 'white', padding: '16px 24px', borderRadius: 16, border: 'none', fontSize: 16, fontWeight: 500, cursor: 'pointer' }}>Continue with Google</button>
       </div>
     </div>
   );
 
-  // LESSON - WITH BACKGROUND + TYPEWRITER
   if (view === 'lesson' && day) {
     const c = getC(vol, day), done = profile?.completedDays?.includes(`${vol}-d${day}`);
     return (
-      <div className="min-h-screen bg-black flex flex-col">
-        <KenBurns src={BG.embers}/>
-        <header className="sticky top-0 z-20 bg-black/30 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center gap-3">
-          <button onClick={() => setView('home')} className="w-8 h-8 text-white/50">{I.back}</button>
-          <img src={LOGO.aba} alt="ABA" className="w-8 h-8"/>
-          <div className="flex-1"><p className="text-violet-400 text-[10px] tracking-widest">DAY {day} OF {VOL[vol].d}</p><p className="text-white text-sm truncate">{c?.title}</p></div>
-          <button onClick={() => setVoice(!voice)} className={`w-8 h-8 ${voice ? 'text-violet-400' : 'text-white/30'}`}>{I.voice}</button>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <MovingBG src={BG.embers}/>
+        <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={() => setView('home')} style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}>{I.back}</button>
+          <img src={LOGO.aba} alt="ABA" style={{ width: 32, height: 32 }}/>
+          <div style={{ flex: 1 }}><p style={{ color: '#a78bfa', fontSize: 10, letterSpacing: 2 }}>DAY {day} OF {VOL[vol].d}</p><p style={{ color: 'white', fontSize: 14 }}>{c?.title}</p></div>
+          <button onClick={() => setVoice(!voice)} style={{ width: 32, height: 32, color: voice ? '#a78bfa' : 'rgba(255,255,255,0.3)', background: 'none', border: 'none', cursor: 'pointer' }}>{I.voice}</button>
         </header>
-        <div className="flex-1 overflow-y-auto p-4 pb-48 relative z-10">
+        <div style={{ flex: 1, overflowY: 'auto', padding: 16, paddingBottom: 200, position: 'relative', zIndex: 1 }}>
           {msgs.map((m, i) => (
-            <div key={i} className={`mb-5 flex ${m.aba ? 'gap-3' : 'justify-end'}`}>
-              {m.aba && <img src={LOGO.aba} alt="ABA" className="w-8 h-8 mt-1 shrink-0"/>}
-              <div className={`max-w-[85%] px-4 py-3 rounded-2xl backdrop-blur-sm ${m.aba ? 'bg-white/5 border border-white/10 rounded-tl-sm' : 'bg-violet-600/40 border border-violet-500/30 rounded-br-sm'}`}>
-                {m.aba && m.typing ? (
-                  <Typewriter text={m.text} speed={12} onDone={() => {
-                    setIsTyping(false);
-                    setMsgs(p => p.map((msg, idx) => idx === i ? { ...msg, typing: false } : msg));
-                  }}/>
-                ) : (
-                  <p className="text-white/90 text-[15px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
-                )}
+            <div key={i} style={{ marginBottom: 20, display: 'flex', justifyContent: m.aba ? 'flex-start' : 'flex-end', gap: 12 }}>
+              {m.aba && <img src={LOGO.aba} alt="ABA" style={{ width: 32, height: 32, marginTop: 4, flexShrink: 0 }}/>}
+              <div style={{ maxWidth: '85%', padding: '12px 16px', borderRadius: 16, background: m.aba ? 'rgba(255,255,255,0.1)' : 'rgba(139,92,246,0.3)', border: `1px solid ${m.aba ? 'rgba(255,255,255,0.15)' : 'rgba(139,92,246,0.4)'}`, backdropFilter: 'blur(8px)' }}>
+                {m.aba && m.typing ? <Typewriter text={m.text} speed={10} onDone={() => { setIsTyping(false); setMsgs(p => p.map((msg, idx) => idx === i ? { ...msg, typing: false } : msg)); }}/> : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{m.text}</p>}
               </div>
             </div>
           ))}
-          {typing && <div className="flex gap-3"><img src={LOGO.aba} alt="ABA" className="w-8 h-8"/><div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 backdrop-blur-sm"><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:`${i*100}ms`}}/>)}</div></div></div>}
+          {typing && <div style={{ display: 'flex', gap: 12 }}><img src={LOGO.aba} alt="ABA" style={{ width: 32, height: 32 }}/><div style={{ ...glassCard, display: 'flex', gap: 6 }}>{[0,1,2].map(i=><div key={i} style={{ width: 8, height: 8, background: '#a78bfa', borderRadius: '50%', animation: `bounce 1s infinite ${i*0.15}s` }}/>)}</div></div>}
           <div ref={endRef}/>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-black/40 backdrop-blur-xl border-t border-white/10 p-4 z-20">
-          <div className="flex gap-3">
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && send()} placeholder="Ask ABA a question..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50"/>
-            <button onClick={send} disabled={!input.trim() || typing || isTyping} className="bg-violet-600 disabled:bg-white/5 text-white w-12 rounded-xl flex items-center justify-center">{I.send}</button>
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.1)', padding: 16, zIndex: 20 }}>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && send()} placeholder="Ask ABA..." style={{ flex: 1, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 16px', color: 'white', fontSize: 14, outline: 'none' }}/>
+            <button onClick={send} disabled={!input.trim() || typing || isTyping} style={{ width: 48, background: '#7c3aed', border: 'none', borderRadius: 12, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{I.send}</button>
           </div>
-          {!isTyping && <button onClick={complete} className={`w-full mt-3 py-4 rounded-xl font-medium ${done ? 'bg-white/5 text-white/40' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'}`}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>}
+          {!isTyping && <button onClick={complete} style={{ width: '100%', marginTop: 12, padding: 16, borderRadius: 12, border: 'none', background: done ? 'rgba(255,255,255,0.1)' : 'linear-gradient(to right, #10b981, #14b8a6)', color: done ? 'rgba(255,255,255,0.4)' : 'white', fontSize: 15, fontWeight: 500, cursor: 'pointer' }}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>}
         </div>
         <audio ref={audioRef}/>
       </div>
     );
   }
 
-  // LEADERBOARD - WITH BACKGROUND
   if (view === 'kudos') return (
-    <div className="min-h-screen bg-black p-4">
-      <KenBurns src={BG.nebula}/>
-      <div className="relative z-10">
-        <button onClick={() => setView('home')} className="w-8 h-8 text-white/50 mb-4">{I.back}</button>
-        <h1 className="text-xl text-white font-light mb-6 flex items-center gap-3"><span className="w-6 h-6 text-amber-400">{I.trophy}</span>Leaderboard</h1>
-        <div className="space-y-2">
-          {cohort.map((m, i) => (
-            <div key={m.id} className={`flex items-center gap-3 p-3 rounded-xl backdrop-blur-sm border ${i === 0 ? 'bg-amber-500/20 border-amber-500/30' : 'bg-white/5 border-white/10'}`}>
-              <span className={`text-lg font-bold w-6 ${i === 0 ? 'text-amber-400' : 'text-white/30'}`}>{i + 1}</span>
-              <img src={m.photoURL || `https://ui-avatars.com/api/?name=${m.name}&background=7c3aed&color=fff`} className="w-10 h-10 rounded-full"/>
-              <div className="flex-1"><p className="text-white text-sm">{m.name}</p></div>
-              <p className="text-violet-400 font-semibold">{m.xp || 0}</p>
-            </div>
-          ))}
-        </div>
+    <div style={{ minHeight: '100vh', padding: 16 }}>
+      <MovingBG src={BG.nebula}/>
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <button onClick={() => setView('home')} style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16 }}>{I.back}</button>
+        <h1 style={{ fontSize: 20, color: 'white', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}><span style={{ width: 24, height: 24, color: '#fbbf24' }}>{I.trophy}</span>Leaderboard</h1>
+        {cohort.map((m, i) => (
+          <div key={m.id} style={{ ...glassCard, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12, background: i === 0 ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.08)', borderColor: i === 0 ? 'rgba(251,191,36,0.3)' : 'rgba(255,255,255,0.15)' }}>
+            <span style={{ width: 24, fontWeight: 700, color: i === 0 ? '#fbbf24' : 'rgba(255,255,255,0.3)' }}>{i + 1}</span>
+            <img src={m.photoURL || `https://ui-avatars.com/api/?name=${m.name}&background=7c3aed&color=fff`} style={{ width: 40, height: 40, borderRadius: '50%' }}/>
+            <div style={{ flex: 1 }}><p style={{ color: 'white', fontSize: 14 }}>{m.name}</p></div>
+            <p style={{ color: '#a78bfa', fontWeight: 600 }}>{m.xp || 0}</p>
+          </div>
+        ))}
       </div>
     </div>
   );
 
-  // LEARN GRID - WITH BACKGROUND
   if (view === 'learn') {
     const lessons = [...Array(VOL[vol].d)].map((_, i) => ({ d: i + 1, q: (i + 1) % 5 === 0 }));
     const done = profile?.completedDays || [];
     return (
-      <div className="min-h-screen bg-black p-4">
-        <KenBurns src={BG.wetCity}/>
-        <div className="relative z-10">
-          <button onClick={() => setView('home')} className="w-8 h-8 text-white/50 mb-4">{I.back}</button>
-          <div className="flex gap-2 mb-6">{Object.entries(VOL).map(([k, v]) => <button key={k} onClick={() => setVol(k)} className={`flex-1 py-3 rounded-xl text-sm font-medium backdrop-blur-sm ${vol === k ? 'bg-violet-600 text-white' : 'bg-white/5 text-white/50 border border-white/10'}`}>{v.t}</button>)}</div>
-          <p className="text-white/40 text-xs mb-3">{VOL[vol].f} • {done.filter(d => d.startsWith(vol)).length}/{VOL[vol].d}</p>
-          <div className="grid grid-cols-6 gap-2">
+      <div style={{ minHeight: '100vh', padding: 16 }}>
+        <MovingBG src={BG.wetCity}/>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <button onClick={() => setView('home')} style={{ width: 32, height: 32, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 16 }}>{I.back}</button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>{Object.entries(VOL).map(([k, v]) => <button key={k} onClick={() => setVol(k)} style={{ flex: 1, padding: 12, borderRadius: 12, border: vol === k ? 'none' : '1px solid rgba(255,255,255,0.15)', background: vol === k ? '#7c3aed' : 'rgba(255,255,255,0.08)', color: vol === k ? 'white' : 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer' }}>{v.t}</button>)}</div>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, marginBottom: 12 }}>{VOL[vol].f} • {done.filter(d => d.startsWith(vol)).length}/{VOL[vol].d}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }}>
             {lessons.map(l => { const k = `${vol}-d${l.d}`, dn = done.includes(k); return (
-              <button key={l.d} onClick={() => startLesson(vol, l.d)} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-medium backdrop-blur-sm ${dn ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' : l.q ? 'bg-violet-500/30 text-violet-400 border border-violet-500/40' : 'bg-white/5 text-white/50 border border-white/10'}`}>
-                {dn ? <span className="w-4 h-4">{I.check}</span> : l.d}
+              <button key={l.d} onClick={() => startLesson(vol, l.d)} style={{ aspectRatio: '1', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 500, border: `1px solid ${dn ? 'rgba(16,185,129,0.4)' : l.q ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.15)'}`, background: dn ? 'rgba(16,185,129,0.2)' : l.q ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.08)', color: dn ? '#10b981' : l.q ? '#a78bfa' : 'rgba(255,255,255,0.5)', cursor: 'pointer', backdropFilter: 'blur(8px)' }}>
+                {dn ? <span style={{ width: 16, height: 16 }}>{I.check}</span> : l.d}
               </button>
             ); })}
           </div>
@@ -280,63 +270,44 @@ export default function App() {
     );
   }
 
-  // HOME - WITH BACKGROUND
   const cnt = profile?.completedDays?.length || 0, tot = Object.values(VOL).reduce((s, v) => s + v.d, 0), pct = Math.round((cnt / tot) * 100);
   const next = getNext();
   const rank = cohort.findIndex(c => c.id === user?.uid) + 1;
 
   return (
-    <div className="min-h-screen bg-black p-4 pb-8">
-      <KenBurns src={BG.pinkSmoke}/>
-      <div className="relative z-10">
-        <div className="flex items-center gap-4 mb-8">
-          <img src={LOGO.aba} alt="ABA" className="w-14 h-14"/>
-          <div>
-            <h1 className="text-xl text-white">Hey, <span className="text-violet-400">{profile?.name?.split(' ')[0]}</span></h1>
-            <p className="text-white/40 text-sm">{cnt === 0 ? 'Ready to start?' : `${pct}% complete`}</p>
-          </div>
+    <div style={{ minHeight: '100vh', padding: 16, paddingBottom: 32 }}>
+      <MovingBG src={BG.pinkSmoke}/>
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 32 }}>
+          <img src={LOGO.aba} alt="ABA" style={{ width: 56, height: 56 }}/>
+          <div><h1 style={{ fontSize: 20, color: 'white' }}>Hey, <span style={{ color: '#a78bfa' }}>{profile?.name?.split(' ')[0]}</span></h1><p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>{cnt === 0 ? 'Ready to start?' : `${pct}% complete`}</p></div>
         </div>
 
-        <div className="flex gap-3 mb-6">
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-light text-white">{profile?.xp || 0}</p>
-            <p className="text-violet-400 text-xs mt-1">XP</p>
-          </div>
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-light text-white flex items-center justify-center gap-1">{profile?.streak || 0}<span className="w-4 h-4 text-amber-400">{I.fire}</span></p>
-            <p className="text-amber-400 text-xs mt-1">Streak</p>
-          </div>
-          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
-            <p className="text-2xl font-light text-white">#{rank || '-'}</p>
-            <p className="text-emerald-400 text-xs mt-1">Rank</p>
-          </div>
+        <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+          <div style={{ ...glassCard, flex: 1, textAlign: 'center' }}><p style={{ fontSize: 24, fontWeight: 300, color: 'white' }}>{profile?.xp || 0}</p><p style={{ color: '#a78bfa', fontSize: 12, marginTop: 4 }}>XP</p></div>
+          <div style={{ ...glassCard, flex: 1, textAlign: 'center' }}><p style={{ fontSize: 24, fontWeight: 300, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>{profile?.streak || 0}<span style={{ width: 16, height: 16, color: '#fbbf24' }}>{I.fire}</span></p><p style={{ color: '#fbbf24', fontSize: 12, marginTop: 4 }}>Streak</p></div>
+          <div style={{ ...glassCard, flex: 1, textAlign: 'center' }}><p style={{ fontSize: 24, fontWeight: 300, color: 'white' }}>#{rank || '-'}</p><p style={{ color: '#10b981', fontSize: 12, marginTop: 4 }}>Rank</p></div>
         </div>
 
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 mb-6">
-          <div className="flex justify-between text-sm mb-2"><span className="text-white/50">Progress</span><span className="text-violet-400">{cnt}/{tot}</span></div>
-          <div className="h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${pct}%` }}/></div>
+        <div style={{ ...glassCard, marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}><span style={{ color: 'rgba(255,255,255,0.5)' }}>Progress</span><span style={{ color: '#a78bfa' }}>{cnt}/{tot}</span></div>
+          <div style={{ height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', background: 'linear-gradient(to right, #7c3aed, #c026d3)', borderRadius: 4, width: `${pct}%`, transition: 'width 0.5s' }}/></div>
         </div>
 
         {next && (
-          <button onClick={() => startLesson(next.vol, next.day)} className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-5 mb-4 text-left shadow-lg shadow-violet-500/25">
-            <p className="text-white/60 text-xs tracking-wider mb-1">UP NEXT</p>
-            <p className="text-white text-lg font-medium">Day {next.day}: {next.title}</p>
-            <div className="flex items-center gap-2 mt-3 text-white/80 text-sm"><span className="w-5 h-5">{I.play}</span>Start Lesson</div>
+          <button onClick={() => startLesson(next.vol, next.day)} style={{ width: '100%', background: 'linear-gradient(to right, #7c3aed, #c026d3)', borderRadius: 16, padding: 20, marginBottom: 16, textAlign: 'left', border: 'none', cursor: 'pointer', boxShadow: '0 10px 40px rgba(124,58,237,0.3)' }}>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, letterSpacing: 1, marginBottom: 4 }}>UP NEXT</p>
+            <p style={{ color: 'white', fontSize: 18, fontWeight: 500 }}>Day {next.day}: {next.title}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, color: 'rgba(255,255,255,0.8)', fontSize: 14 }}><span style={{ width: 20, height: 20 }}>{I.play}</span>Start Lesson</div>
           </button>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <button onClick={() => setView('learn')} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
-            <span className="w-6 h-6 text-violet-400 block mb-2">{I.book}</span>
-            <p className="text-white text-sm">All Lessons</p>
-          </button>
-          <button onClick={() => setView('kudos')} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
-            <span className="w-6 h-6 text-amber-400 block mb-2">{I.trophy}</span>
-            <p className="text-white text-sm">Leaderboard</p>
-          </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setView('learn')} style={{ ...glassCard, textAlign: 'left', cursor: 'pointer' }}><span style={{ width: 24, height: 24, color: '#a78bfa', display: 'block', marginBottom: 8 }}>{I.book}</span><p style={{ color: 'white', fontSize: 14 }}>All Lessons</p></button>
+          <button onClick={() => setView('kudos')} style={{ ...glassCard, textAlign: 'left', cursor: 'pointer' }}><span style={{ width: 24, height: 24, color: '#fbbf24', display: 'block', marginBottom: 8 }}>{I.trophy}</span><p style={{ color: 'white', fontSize: 14 }}>Leaderboard</p></button>
         </div>
 
-        <button onClick={() => signOut(auth)} className="w-full text-white/30 text-sm py-4">Sign Out</button>
+        <button onClick={() => signOut(auth)} style={{ width: '100%', color: 'rgba(255,255,255,0.3)', fontSize: 14, padding: 16, background: 'none', border: 'none', cursor: 'pointer' }}>Sign Out</button>
       </div>
     </div>
   );
