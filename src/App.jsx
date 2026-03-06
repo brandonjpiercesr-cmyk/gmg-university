@@ -30,10 +30,10 @@ const KenBurns = ({ src }) => (
         backgroundImage: `url(${src})`, 
         inset: '-20%',
         animation: 'ken 25s ease-in-out infinite alternate',
-        opacity: 0.55
+        opacity: 0.85
       }}
     />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
+    <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
   </div>
 );
 // ============ END 911 BACKGROUNDS ============
@@ -199,7 +199,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-black flex flex-col">
         <KenBurns src={BG.embers}/>
-        <header className="sticky top-0 z-20 bg-black/60 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center gap-3">
+        <header className="sticky top-0 z-20 bg-black/30 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setView('home')} className="w-8 h-8 text-white/50">{I.back}</button>
           <img src={LOGO.aba} alt="ABA" className="w-8 h-8"/>
           <div className="flex-1"><p className="text-violet-400 text-[10px] tracking-widest">DAY {day} OF {VOL[vol].d}</p><p className="text-white text-sm truncate">{c?.title}</p></div>
@@ -209,7 +209,7 @@ export default function App() {
           {msgs.map((m, i) => (
             <div key={i} className={`mb-5 flex ${m.aba ? 'gap-3' : 'justify-end'}`}>
               {m.aba && <img src={LOGO.aba} alt="ABA" className="w-8 h-8 mt-1 shrink-0"/>}
-              <div className={`max-w-[85%] px-4 py-3 rounded-2xl backdrop-blur-sm ${m.aba ? 'bg-white/10 border border-white/10 rounded-tl-sm' : 'bg-violet-600/40 border border-violet-500/30 rounded-br-sm'}`}>
+              <div className={`max-w-[85%] px-4 py-3 rounded-2xl backdrop-blur-sm ${m.aba ? 'bg-white/5 border border-white/10 rounded-tl-sm' : 'bg-violet-600/40 border border-violet-500/30 rounded-br-sm'}`}>
                 {m.aba && m.typing ? (
                   <Typewriter text={m.text} speed={12} onDone={() => {
                     setIsTyping(false);
@@ -221,15 +221,15 @@ export default function App() {
               </div>
             </div>
           ))}
-          {typing && <div className="flex gap-3"><img src={LOGO.aba} alt="ABA" className="w-8 h-8"/><div className="bg-white/10 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 backdrop-blur-sm"><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:`${i*100}ms`}}/>)}</div></div></div>}
+          {typing && <div className="flex gap-3"><img src={LOGO.aba} alt="ABA" className="w-8 h-8"/><div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 backdrop-blur-sm"><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:`${i*100}ms`}}/>)}</div></div></div>}
           <div ref={endRef}/>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-black/70 backdrop-blur-xl border-t border-white/10 p-4 z-20">
+        <div className="fixed bottom-0 left-0 right-0 bg-black/40 backdrop-blur-xl border-t border-white/10 p-4 z-20">
           <div className="flex gap-3">
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && send()} placeholder="Ask ABA a question..." className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50"/>
-            <button onClick={send} disabled={!input.trim() || typing || isTyping} className="bg-violet-600 disabled:bg-white/10 text-white w-12 rounded-xl flex items-center justify-center">{I.send}</button>
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && send()} placeholder="Ask ABA a question..." className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50"/>
+            <button onClick={send} disabled={!input.trim() || typing || isTyping} className="bg-violet-600 disabled:bg-white/5 text-white w-12 rounded-xl flex items-center justify-center">{I.send}</button>
           </div>
-          {!isTyping && <button onClick={complete} className={`w-full mt-3 py-4 rounded-xl font-medium ${done ? 'bg-white/10 text-white/40' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'}`}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>}
+          {!isTyping && <button onClick={complete} className={`w-full mt-3 py-4 rounded-xl font-medium ${done ? 'bg-white/5 text-white/40' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'}`}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>}
         </div>
         <audio ref={audioRef}/>
       </div>
@@ -266,11 +266,11 @@ export default function App() {
         <KenBurns src={BG.wetCity}/>
         <div className="relative z-10">
           <button onClick={() => setView('home')} className="w-8 h-8 text-white/50 mb-4">{I.back}</button>
-          <div className="flex gap-2 mb-6">{Object.entries(VOL).map(([k, v]) => <button key={k} onClick={() => setVol(k)} className={`flex-1 py-3 rounded-xl text-sm font-medium backdrop-blur-sm ${vol === k ? 'bg-violet-600 text-white' : 'bg-white/10 text-white/50 border border-white/10'}`}>{v.t}</button>)}</div>
+          <div className="flex gap-2 mb-6">{Object.entries(VOL).map(([k, v]) => <button key={k} onClick={() => setVol(k)} className={`flex-1 py-3 rounded-xl text-sm font-medium backdrop-blur-sm ${vol === k ? 'bg-violet-600 text-white' : 'bg-white/5 text-white/50 border border-white/10'}`}>{v.t}</button>)}</div>
           <p className="text-white/40 text-xs mb-3">{VOL[vol].f} • {done.filter(d => d.startsWith(vol)).length}/{VOL[vol].d}</p>
           <div className="grid grid-cols-6 gap-2">
             {lessons.map(l => { const k = `${vol}-d${l.d}`, dn = done.includes(k); return (
-              <button key={l.d} onClick={() => startLesson(vol, l.d)} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-medium backdrop-blur-sm ${dn ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' : l.q ? 'bg-violet-500/30 text-violet-400 border border-violet-500/40' : 'bg-white/10 text-white/50 border border-white/10'}`}>
+              <button key={l.d} onClick={() => startLesson(vol, l.d)} className={`aspect-square rounded-xl flex items-center justify-center text-sm font-medium backdrop-blur-sm ${dn ? 'bg-emerald-500/30 text-emerald-400 border border-emerald-500/40' : l.q ? 'bg-violet-500/30 text-violet-400 border border-violet-500/40' : 'bg-white/5 text-white/50 border border-white/10'}`}>
                 {dn ? <span className="w-4 h-4">{I.check}</span> : l.d}
               </button>
             ); })}
@@ -298,23 +298,23 @@ export default function App() {
         </div>
 
         <div className="flex gap-3 mb-6">
-          <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
+          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
             <p className="text-2xl font-light text-white">{profile?.xp || 0}</p>
             <p className="text-violet-400 text-xs mt-1">XP</p>
           </div>
-          <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
+          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
             <p className="text-2xl font-light text-white flex items-center justify-center gap-1">{profile?.streak || 0}<span className="w-4 h-4 text-amber-400">{I.fire}</span></p>
             <p className="text-amber-400 text-xs mt-1">Streak</p>
           </div>
-          <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
+          <div className="flex-1 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
             <p className="text-2xl font-light text-white">#{rank || '-'}</p>
             <p className="text-emerald-400 text-xs mt-1">Rank</p>
           </div>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 mb-6">
+        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 mb-6">
           <div className="flex justify-between text-sm mb-2"><span className="text-white/50">Progress</span><span className="text-violet-400">{cnt}/{tot}</span></div>
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${pct}%` }}/></div>
+          <div className="h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${pct}%` }}/></div>
         </div>
 
         {next && (
@@ -326,11 +326,11 @@ export default function App() {
         )}
 
         <div className="grid grid-cols-2 gap-3 mb-6">
-          <button onClick={() => setView('learn')} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
+          <button onClick={() => setView('learn')} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
             <span className="w-6 h-6 text-violet-400 block mb-2">{I.book}</span>
             <p className="text-white text-sm">All Lessons</p>
           </button>
-          <button onClick={() => setView('kudos')} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
+          <button onClick={() => setView('kudos')} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
             <span className="w-6 h-6 text-amber-400 block mb-2">{I.trophy}</span>
             <p className="text-white text-sm">Leaderboard</p>
           </button>
