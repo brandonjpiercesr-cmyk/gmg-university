@@ -1,4 +1,4 @@
-// GMG UNIVERSITY v6.2.0 - PROPER BRANDING + INSTANT LOAD + BACKGROUNDS
+// GMG UNIVERSITY v6.3.0 - TYPEWRITER + BACKGROUNDS LOCKED
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
@@ -12,13 +12,7 @@ const AIR = 'https://abacia-services.onrender.com/api/air/process';
 const TTS = 'https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL';
 const TTS_KEY = 'sk_e0b48157805968dbb370f299b60e22001189bd85c3864040';
 
-// PROPER BRANDING
-const LOGO = {
-  gmg: 'https://i.imgur.com/qslzgTU.png',
-  aba: 'https://i.imgur.com/0be7HCF.png'
-};
-
-// BACKGROUNDS
+// ============ 911 BACKGROUNDS - DO NOT REMOVE ============
 const BG = {
   pinkSmoke: 'https://i.imgur.com/3RkebB2.jpeg',
   embers: 'https://i.imgur.com/9HZYnlX.png',
@@ -27,16 +21,25 @@ const BG = {
   eventHorizon: 'https://i.imgur.com/A44TxCq.jpeg'
 };
 
-// Ken Burns Background
+// ============ 911 BACKGROUNDS COMPONENT - DO NOT REMOVE ============
 const KenBurns = ({ src }) => (
-  <div className="fixed inset-0 overflow-hidden -z-10">
+  <div className="fixed inset-0 overflow-hidden" style={{ zIndex: -1 }}>
     <div 
-      className="absolute inset-[-20%] bg-cover bg-center animate-[ken_25s_ease-in-out_infinite_alternate]" 
-      style={{ backgroundImage: `url(${src})`, opacity: 0.5 }}
+      className="absolute bg-cover bg-center"
+      style={{ 
+        backgroundImage: `url(${src})`, 
+        inset: '-20%',
+        animation: 'ken 25s ease-in-out infinite alternate',
+        opacity: 0.55
+      }}
     />
-    <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+    <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
   </div>
 );
+// ============ END 911 BACKGROUNDS ============
+
+// LOGOS
+const LOGO = { gmg: 'https://i.imgur.com/qslzgTU.png', aba: 'https://i.imgur.com/0be7HCF.png' };
 
 // Icons
 const I = {
@@ -50,22 +53,52 @@ const I = {
   book: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M12 6.5a9 9 0 00-6-2.5c-1 0-2 .2-3 .5v14c1-.3 2-.5 3-.5a9 9 0 016 2.5 9 9 0 016-2.5c1 0 2 .2 3 .5v-14c-1-.3-2-.5-3-.5a9 9 0 00-6 2.5z"/></svg>
 };
 
-// CSS for Ken Burns
-const style = document.createElement('style');
-style.textContent = `@keyframes ken { from { transform: scale(1) translate(0,0); } to { transform: scale(1.1) translate(-2%,-2%); } }`;
-document.head.appendChild(style);
+// Add keyframes
+if (!document.getElementById('kb-style')) {
+  const s = document.createElement('style'); s.id = 'kb-style';
+  s.textContent = `@keyframes ken { from { transform: scale(1) translate(0,0); } to { transform: scale(1.15) translate(-3%,-3%); } }`;
+  document.head.appendChild(s);
+}
 
 const getC = (v, d) => ({ v1: V1_CONTENT, v2: V2_CONTENT, v3: V3_CONTENT }[v]?.[d]);
 const VOL = { v1: { t: 'Foundations', f: 'Fundraising Foundations', d: 30 }, v2: { t: 'GMG Way', f: 'The GMG Way', d: 30 }, v3: { t: 'CPP', f: 'CPP Model', d: 15 } };
 
-// Format content for display
 const formatContent = (c, name) => {
   if (!c) return `Welcome to today's lesson.`;
   let txt = `${name}, welcome to today's lesson: ${c.title}.\n\n`;
   c.sections?.forEach(s => { txt += `${s.h}\n\n${s.c}\n\n`; });
-  if (c.exercise) txt += `Exercise: ${c.exercise}\n\n`;
+  if (c.exercise) txt += `Today's Exercise:\n${c.exercise}\n\n`;
   if (c.keyTakeaways?.length) txt += `Key Takeaways:\n${c.keyTakeaways.map(t => `• ${t}`).join('\n')}`;
   return txt;
+};
+
+// TYPEWRITER COMPONENT - makes text type in like ABA is speaking
+const Typewriter = ({ text, speed = 15, onDone }) => {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+  
+  useEffect(() => {
+    setDisplayed(''); setDone(false);
+    let i = 0;
+    const iv = setInterval(() => {
+      if (i < text.length) {
+        setDisplayed(text.substring(0, i + 1));
+        i++;
+      } else {
+        clearInterval(iv);
+        setDone(true);
+        onDone?.();
+      }
+    }, speed);
+    return () => clearInterval(iv);
+  }, [text]);
+
+  return (
+    <p className="text-white/90 text-[15px] leading-relaxed whitespace-pre-wrap">
+      {displayed}
+      {!done && <span className="inline-block w-2 h-4 bg-violet-400 ml-1 animate-pulse"/>}
+    </p>
+  );
 };
 
 export default function App() {
@@ -73,10 +106,11 @@ export default function App() {
   const [view, setView] = useState('home'), [vol, setVol] = useState('v1'), [day, setDay] = useState(null);
   const [voice, setVoice] = useState(false), [cohort, setCohort] = useState([]);
   const [msgs, setMsgs] = useState([]), [input, setInput] = useState(''), [typing, setTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const audioRef = useRef(), endRef = useRef();
 
   useEffect(() => { onAuthStateChanged(auth, async u => { if (u) { setUser(u); await load(u); } else { setUser(null); setProfile(null); } setLoading(false); }); }, []);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, typing]);
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs, isTyping]);
 
   const load = async u => {
     const ref = doc(db, 'users', u.uid), snap = await getDoc(ref);
@@ -96,16 +130,15 @@ export default function App() {
     return null;
   };
 
-  // INSTANT LOAD - show content immediately, then AIR can enhance
+  // Start lesson - content types in like ABA is speaking
   const startLesson = (v, d) => {
     setVol(v); setDay(d); setView('lesson'); setMsgs([]);
     const c = getC(v, d), name = profile?.name?.split(' ')[0] || 'there';
-    // Show content INSTANTLY
     const content = formatContent(c, name);
-    setMsgs([{ aba: true, text: content }]);
+    setIsTyping(true);
+    setMsgs([{ aba: true, text: content, typing: true }]);
   };
 
-  // Ask ABA a question
   const send = async () => {
     if (!input.trim() || typing) return;
     const msg = input.trim(); setInput(''); setTyping(true);
@@ -116,13 +149,14 @@ export default function App() {
     try {
       const r = await fetch(AIR, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, user_id: profile?.email, channel: 'gmg_v6',
-          context: { systemPrompt: `You are ABA, AI professor at GMG University. Student: ${profile?.name?.split(' ')[0]}. Lesson: ${c?.title}. Content: ${data}. Answer their question helpfully. Be warm and conversational. No markdown symbols.` }
+          context: { systemPrompt: `You are ABA, AI professor at GMG University. Student: ${profile?.name?.split(' ')[0]}. Lesson: ${c?.title}. Content: ${data}. Answer helpfully. Be warm. No markdown.` }
         })
       });
       const res = await r.json();
-      setMsgs(p => [...p, { aba: true, text: res.response || res.message || "Let me help with that..." }]);
+      setIsTyping(true);
+      setMsgs(p => [...p, { aba: true, text: res.response || res.message || "Let me help with that...", typing: true }]);
       if (voice) speak(res.response);
-    } catch { setMsgs(p => [...p, { aba: true, text: "Connection issue. Try again?" }]); }
+    } catch { setMsgs(p => [...p, { aba: true, text: "Connection issue. Try again?", typing: true }]); }
     finally { setTyping(false); }
   };
 
@@ -137,11 +171,17 @@ export default function App() {
     setView('home');
   };
 
-  if (loading) return <div className="min-h-screen bg-black flex items-center justify-center"><KenBurns src={BG.pinkSmoke}/><img src={LOGO.aba} alt="ABA" className="w-20 h-20 animate-pulse relative z-10"/></div>;
+  // LOADING - WITH BACKGROUND
+  if (loading) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <KenBurns src={BG.pinkSmoke}/>
+      <img src={LOGO.aba} alt="ABA" className="w-20 h-20 animate-pulse relative z-10"/>
+    </div>
+  );
 
-  // LOGIN
+  // LOGIN - WITH BACKGROUND
   if (!user) return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 relative">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8">
       <KenBurns src={BG.pinkSmoke}/>
       <div className="relative z-10 flex flex-col items-center">
         <img src={LOGO.gmg} alt="GMG" className="w-32 h-32 mb-6"/>
@@ -153,13 +193,13 @@ export default function App() {
     </div>
   );
 
-  // LESSON - INSTANT CONTENT
+  // LESSON - WITH BACKGROUND + TYPEWRITER
   if (view === 'lesson' && day) {
     const c = getC(vol, day), done = profile?.completedDays?.includes(`${vol}-d${day}`);
     return (
-      <div className="min-h-screen bg-black flex flex-col relative">
+      <div className="min-h-screen bg-black flex flex-col">
         <KenBurns src={BG.embers}/>
-        <header className="sticky top-0 z-20 bg-black/70 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center gap-3">
+        <header className="sticky top-0 z-20 bg-black/60 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setView('home')} className="w-8 h-8 text-white/50">{I.back}</button>
           <img src={LOGO.aba} alt="ABA" className="w-8 h-8"/>
           <div className="flex-1"><p className="text-violet-400 text-[10px] tracking-widest">DAY {day} OF {VOL[vol].d}</p><p className="text-white text-sm truncate">{c?.title}</p></div>
@@ -170,28 +210,35 @@ export default function App() {
             <div key={i} className={`mb-5 flex ${m.aba ? 'gap-3' : 'justify-end'}`}>
               {m.aba && <img src={LOGO.aba} alt="ABA" className="w-8 h-8 mt-1 shrink-0"/>}
               <div className={`max-w-[85%] px-4 py-3 rounded-2xl backdrop-blur-sm ${m.aba ? 'bg-white/10 border border-white/10 rounded-tl-sm' : 'bg-violet-600/40 border border-violet-500/30 rounded-br-sm'}`}>
-                <p className="text-white/90 text-[15px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                {m.aba && m.typing ? (
+                  <Typewriter text={m.text} speed={12} onDone={() => {
+                    setIsTyping(false);
+                    setMsgs(p => p.map((msg, idx) => idx === i ? { ...msg, typing: false } : msg));
+                  }}/>
+                ) : (
+                  <p className="text-white/90 text-[15px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                )}
               </div>
             </div>
           ))}
-          {typing && <div className="flex gap-3"><img src={LOGO.aba} alt="ABA" className="w-8 h-8"/><div className="bg-white/10 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3"><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:`${i*100}ms`}}/>)}</div></div></div>}
+          {typing && <div className="flex gap-3"><img src={LOGO.aba} alt="ABA" className="w-8 h-8"/><div className="bg-white/10 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 backdrop-blur-sm"><div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 bg-violet-400 rounded-full animate-bounce" style={{animationDelay:`${i*100}ms`}}/>)}</div></div></div>}
           <div ref={endRef}/>
         </div>
-        <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-white/10 p-4 z-20">
+        <div className="fixed bottom-0 left-0 right-0 bg-black/70 backdrop-blur-xl border-t border-white/10 p-4 z-20">
           <div className="flex gap-3">
             <input value={input} onChange={e => setInput(e.target.value)} onKeyPress={e => e.key === 'Enter' && send()} placeholder="Ask ABA a question..." className="flex-1 bg-white/10 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder-white/30 text-sm focus:outline-none focus:border-violet-500/50"/>
-            <button onClick={send} disabled={!input.trim() || typing} className="bg-violet-600 disabled:bg-white/10 text-white w-12 rounded-xl flex items-center justify-center">{I.send}</button>
+            <button onClick={send} disabled={!input.trim() || typing || isTyping} className="bg-violet-600 disabled:bg-white/10 text-white w-12 rounded-xl flex items-center justify-center">{I.send}</button>
           </div>
-          <button onClick={complete} className={`w-full mt-3 py-4 rounded-xl font-medium ${done ? 'bg-white/10 text-white/40' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'}`}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>
+          {!isTyping && <button onClick={complete} className={`w-full mt-3 py-4 rounded-xl font-medium ${done ? 'bg-white/10 text-white/40' : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/25'}`}>{done ? 'Completed' : 'Mark Complete +100 XP'}</button>}
         </div>
         <audio ref={audioRef}/>
       </div>
     );
   }
 
-  // LEADERBOARD
+  // LEADERBOARD - WITH BACKGROUND
   if (view === 'kudos') return (
-    <div className="min-h-screen bg-black p-4 relative">
+    <div className="min-h-screen bg-black p-4">
       <KenBurns src={BG.nebula}/>
       <div className="relative z-10">
         <button onClick={() => setView('home')} className="w-8 h-8 text-white/50 mb-4">{I.back}</button>
@@ -210,12 +257,12 @@ export default function App() {
     </div>
   );
 
-  // LEARN (Day Grid)
+  // LEARN GRID - WITH BACKGROUND
   if (view === 'learn') {
-    const lessons = [...Array(VOL[vol].d)].map((_, i) => ({ d: i + 1, t: (CURRICULUM_TITLES[vol] || [])[i], q: (i + 1) % 5 === 0 }));
+    const lessons = [...Array(VOL[vol].d)].map((_, i) => ({ d: i + 1, q: (i + 1) % 5 === 0 }));
     const done = profile?.completedDays || [];
     return (
-      <div className="min-h-screen bg-black p-4 relative">
+      <div className="min-h-screen bg-black p-4">
         <KenBurns src={BG.wetCity}/>
         <div className="relative z-10">
           <button onClick={() => setView('home')} className="w-8 h-8 text-white/50 mb-4">{I.back}</button>
@@ -233,16 +280,15 @@ export default function App() {
     );
   }
 
-  // HOME
+  // HOME - WITH BACKGROUND
   const cnt = profile?.completedDays?.length || 0, tot = Object.values(VOL).reduce((s, v) => s + v.d, 0), pct = Math.round((cnt / tot) * 100);
   const next = getNext();
   const rank = cohort.findIndex(c => c.id === user?.uid) + 1;
 
   return (
-    <div className="min-h-screen bg-black p-4 pb-8 relative">
+    <div className="min-h-screen bg-black p-4 pb-8">
       <KenBurns src={BG.pinkSmoke}/>
       <div className="relative z-10">
-        {/* Header with logo */}
         <div className="flex items-center gap-4 mb-8">
           <img src={LOGO.aba} alt="ABA" className="w-14 h-14"/>
           <div>
@@ -251,7 +297,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-3 mb-6">
           <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-center">
             <p className="text-2xl font-light text-white">{profile?.xp || 0}</p>
@@ -267,22 +312,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 mb-6">
           <div className="flex justify-between text-sm mb-2"><span className="text-white/50">Progress</span><span className="text-violet-400">{cnt}/{tot}</span></div>
           <div className="h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${pct}%` }}/></div>
         </div>
 
-        {/* Next Lesson */}
         {next && (
-          <button onClick={() => startLesson(next.vol, next.day)} className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-5 mb-4 text-left shadow-lg shadow-violet-500/20">
+          <button onClick={() => startLesson(next.vol, next.day)} className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-2xl p-5 mb-4 text-left shadow-lg shadow-violet-500/25">
             <p className="text-white/60 text-xs tracking-wider mb-1">UP NEXT</p>
             <p className="text-white text-lg font-medium">Day {next.day}: {next.title}</p>
             <div className="flex items-center gap-2 mt-3 text-white/80 text-sm"><span className="w-5 h-5">{I.play}</span>Start Lesson</div>
           </button>
         )}
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <button onClick={() => setView('learn')} className="bg-white/10 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-left">
             <span className="w-6 h-6 text-violet-400 block mb-2">{I.book}</span>
@@ -294,7 +336,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Sign out */}
         <button onClick={() => signOut(auth)} className="w-full text-white/30 text-sm py-4">Sign Out</button>
       </div>
     </div>
