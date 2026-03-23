@@ -9,7 +9,8 @@ const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", auth
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
 
 const AIR = 'https://abacia-services.onrender.com/api/air/process';
-const TTS = 'https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL';
+const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
+const TTS = 'https://api.elevenlabs.io/v1/text-to-speech/AIFDUhRnM6s61433WMNu'; // Kiara voice
 const TTS_KEY = 'sk_e0b48157805968dbb370f299b60e22001189bd85c3864040';
 
 // 911 BACKGROUNDS
@@ -147,24 +148,61 @@ export default function App() {
     setMsgs([{ aba: true, text: content, typing: true }]);
   };
 
+  // ⬡B:roadmap.tier3:STREAMING:gmgu_send:20260323⬡
+  // Streaming send — subtitles appear word-by-word, sentences queue for TTS
   const send = async () => {
     if (!input.trim() || typing) return;
     const msg = input.trim(); setInput(''); setTyping(true);
     setMsgs(p => [...p, { aba: false, text: msg }]);
-    const c = getC(vol, day);
-    let data = c ? `${c.title}: ` : ''; c?.sections?.forEach(s => { data += `${s.h} - ${s.c.substring(0, 300)} `; });
+    
+    const abaMsgIdx = msgs.length + 1; // index of the ABA message we're about to add
+    setMsgs(p => [...p, { aba: true, text: '', streaming: true }]);
+    
     try {
-      const r = await fetch(AIR, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, user_id: profile?.email, channel: 'gmg_v6',
-          context: { systemPrompt: `You are ABA, AI professor. Student: ${profile?.name?.split(' ')[0]}. Lesson: ${c?.title}. Content: ${data}. Answer helpfully. Be warm. No markdown.` }
+      const r = await fetch(AIR_STREAM, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, user_id: profile?.email, userId: profile?.email, channel: 'gmg-university',
+          conversationHistory: msgs.slice(-20).map(m => ({ role: m.aba ? 'assistant' : 'user', content: m.text || '' })).filter(m => m.content)
         })
       });
-      const res = await r.json();
-      setIsTyping(true);
-      setMsgs(p => [...p, { aba: true, text: res.response || res.message || "Let me help...", typing: true }]);
-      if (voice) speak(res.response);
-    } catch { setMsgs(p => [...p, { aba: true, text: "Connection issue. Try again?" }]); }
-    finally { setTyping(false); }
+      
+      const reader = r.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+      let sentenceBuffer = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split('\n').filter(l => l.startsWith('data: '));
+        
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'chunk') {
+              accumulated += data.text;
+              sentenceBuffer += data.text;
+              // Update subtitles in real-time
+              setMsgs(p => { const copy = [...p]; const last = copy[copy.length - 1]; if (last?.aba) { copy[copy.length - 1] = { ...last, text: accumulated }; } return copy; });
+              
+              // Buffer sentences for TTS
+              if (voice && sentenceBuffer.match(/[.!?]\s*$/)) {
+                speak(sentenceBuffer.trim());
+                sentenceBuffer = '';
+              }
+            } else if (data.type === 'tool_start') {
+              setMsgs(p => { const copy = [...p]; const last = copy[copy.length - 1]; if (last?.aba) { copy[copy.length - 1] = { ...last, text: accumulated + '\n_Working on it..._' }; } return copy; });
+            } else if (data.type === 'done') {
+              setMsgs(p => { const copy = [...p]; const last = copy[copy.length - 1]; if (last?.aba) { copy[copy.length - 1] = { ...last, text: data.fullResponse || accumulated, streaming: false }; } return copy; });
+              // Speak any remaining sentence fragment
+              if (voice && sentenceBuffer.trim()) speak(sentenceBuffer.trim());
+            }
+          } catch {}
+        }
+      }
+    } catch { setMsgs(p => [...p.slice(0, -1), { aba: true, text: "Connection issue. Try again?" }]); }
+    finally { setTyping(false); setIsTyping(false); }
   };
 
   const speak = async t => { if (!t) return; try { const r = await fetch(TTS, { method: 'POST', headers: { 'Content-Type': 'application/json', 'xi-api-key': TTS_KEY }, body: JSON.stringify({ text: t.substring(0, 500), model_id: 'eleven_turbo_v2_5' }) }); if (audioRef.current && r.ok) { audioRef.current.src = URL.createObjectURL(await r.blob()); audioRef.current.play(); } } catch {} };
@@ -211,7 +249,7 @@ export default function App() {
             <div key={i} style={{ marginBottom: 20, display: 'flex', justifyContent: m.aba ? 'flex-start' : 'flex-end', gap: 12 }}>
               {m.aba && <img src={LOGO.aba} alt="ABA" style={{ width: 32, height: 32, marginTop: 4, flexShrink: 0 }}/>}
               <div style={{ maxWidth: '85%', padding: '12px 16px', borderRadius: 16, background: m.aba ? 'rgba(255,255,255,0.1)' : 'rgba(139,92,246,0.3)', border: `1px solid ${m.aba ? 'rgba(255,255,255,0.15)' : 'rgba(139,92,246,0.4)'}`, backdropFilter: 'blur(8px)' }}>
-                {m.aba && m.typing ? <Typewriter text={m.text} speed={10} onDone={() => { setIsTyping(false); setMsgs(p => p.map((msg, idx) => idx === i ? { ...msg, typing: false } : msg)); }}/> : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{m.text}</p>}
+                {m.aba && m.typing ? <Typewriter text={m.text} speed={10} onDone={() => { setIsTyping(false); setMsgs(p => p.map((msg, idx) => idx === i ? { ...msg, typing: false } : msg)); if (voice && m.text) speak(m.text); }}/> : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{m.text}{m.streaming && <span style={{ display: 'inline-block', width: 8, height: 18, background: '#a78bfa', marginLeft: 4, animation: 'pulse 1s infinite' }}/>}</p>}
               </div>
             </div>
           ))}
