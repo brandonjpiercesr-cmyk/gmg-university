@@ -234,6 +234,64 @@ export default function App() {
   const [currentLesson, setCurrentLesson] = useState(null);
   const [initDone, setInitDone] = useState(false);
   const [deckContent, setDeckContent] = useState(null);
+  const [adminView, setAdminView] = useState(false);
+  const [adminStudents, setAdminStudents] = useState([]);
+  const [adminInterviews, setAdminInterviews] = useState([]);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' });
+
+  const ADMIN_API = 'https://abacia-services.onrender.com/api/gmg-university/admin';
+  const isAdmin = user?.email && ['brandonjpiercesr@gmail.com','brandon@globalmajoritygroup.com','eric@globalmajoritygroup.com','ericreeselanesr@gmail.com'].includes(user.email.toLowerCase());
+
+  async function loadAdmin() {
+    if (!isAdmin) return;
+    setAdminLoading(true);
+    try {
+      const [sRes, iRes] = await Promise.all([
+        fetch(ADMIN_API + '/students?email=' + encodeURIComponent(user.email)),
+        fetch(ADMIN_API + '/interviews?email=' + encodeURIComponent(user.email))
+      ]);
+      if (sRes.ok) setAdminStudents((await sRes.json()).students || []);
+      if (iRes.ok) setAdminInterviews((await iRes.json()).interviews || []);
+    } catch {}
+    setAdminLoading(false);
+  }
+
+  async function addStudent() {
+    if (!addForm.email.trim()) return;
+    try {
+      const r = await fetch(ADMIN_API + '/students', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: user.email, student_email: addForm.email, student_name: addForm.name,
+          cohort_type: addForm.cohort, gmg_track: addForm.track, gmg_group: addForm.group
+        })
+      });
+      if (r.ok) { setShowAddForm(false); setAddForm({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' }); loadAdmin(); }
+    } catch {}
+  }
+
+  async function resetStudent(hamId) {
+    if (!window.confirm('Reset ' + hamId + ' progress?')) return;
+    try {
+      await fetch(ADMIN_API + '/students/' + hamId + '/reset', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email })
+      });
+      loadAdmin();
+    } catch {}
+  }
+
+  async function updateStudent(hamId, field, value) {
+    try {
+      await fetch(ADMIN_API + '/students', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, ham_id: hamId, [field]: value })
+      });
+      loadAdmin();
+    } catch {}
+  }
 
   const endRef = useRef(null);
   const audioRef = useRef(null);
@@ -552,6 +610,12 @@ export default function App() {
         }}>{voiceOn ? '🔊' : '🔇'}</button>
 
         {/* Sign out */}
+        {isAdmin && <button onClick={() => { if (!adminView) loadAdmin(); setAdminView(!adminView); }} style={{
+          background: adminView ? 'rgba(124,58,237,0.2)' : 'transparent',
+          border: '1px solid ' + (adminView ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.08)'),
+          borderRadius: 8, padding: '5px 10px', cursor: 'pointer',
+          color: adminView ? '#a78bfa' : 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 500
+        }}>{adminView ? 'Chat' : 'Admin'}</button>}
         <button onClick={() => signOut(auth)} style={{
           background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', fontSize: 11, cursor: 'pointer'
         }}>Out</button>
@@ -597,7 +661,7 @@ export default function App() {
 
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
         <div ref={endRef}/>
-      </div>
+      </div>}
 
       {/* INPUT BAR — iMessage style */}
       <div style={{
@@ -659,7 +723,7 @@ export default function App() {
             </button>
           )}
         </div>
-      </div>
+      </div>}
 
       <LessonSidebar
         show={showSidebar}
