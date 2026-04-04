@@ -2,79 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="https://i.imgur.com/0be7HCF.png" />
-    <link rel="apple-touch-icon" href="https://i.imgur.com/0be7HCF.png" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="https://i.imgur.com/qslzgTU.png" />
+    <link rel="apple-touch-icon" href="https://i.imgur.com/qslzgTU.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#020617" />
+    <meta name="theme-color" content="#0a0a0f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="GMG U" />
-    <meta name="mobile-web-app-capable" content="yes" />
     <title>GMG University | Lane-Pierce Fellowship</title>
-    <meta name="description" content="ABA-powered learning platform for the Lane-Pierce Fellowship nonprofit fundraising program" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body {
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%);
-        min-height: 100vh;
-        -webkit-font-smoothing: antialiased;
-      }
-      .loading-screen {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        color: #f59e0b;
-      }
-      .loading-orb {
-        width: 80px;
-        height: 80px;
-        background: radial-gradient(circle at 30% 30%, #a78bfa, #8b5cf6, #7c3aed);
-        border-radius: 50%;
-        animation: pulse 2s ease-in-out infinite, morph 4s ease-in-out infinite;
-        filter: blur(0.5px);
-        box-shadow: 0 0 40px rgba(139, 92, 246, 0.4);
-      }
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 0.9; }
-        50% { transform: scale(1.05); opacity: 1; }
-      }
-      @keyframes morph {
-        0%, 100% { border-radius: 50%; }
-        25% { border-radius: 45% 55% 55% 45%; }
-        50% { border-radius: 55% 45% 45% 55%; }
-        75% { border-radius: 45% 55% 45% 55%; }
-      }
-      .loading-text {
-        margin-top: 24px;
-        font-size: 14px;
-        letter-spacing: 0.5px;
-      }
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{background:#0a0a0f;min-height:100vh;-webkit-font-smoothing:antialiased;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+      .aba-load{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
+      .aba-energy{width:70px;height:70px;position:relative}
+      .aba-energy::before,.aba-energy::after{content:'';position:absolute;inset:0;border-radius:42% 58% 55% 45% / 48% 42% 58% 52%;animation:morph 4s ease-in-out infinite}
+      .aba-energy::before{background:linear-gradient(135deg,rgba(139,92,246,.8),rgba(236,72,153,.6),rgba(99,102,241,.7));filter:blur(1px);box-shadow:0 0 30px rgba(139,92,246,.4),0 0 60px rgba(236,72,153,.2)}
+      .aba-energy::after{background:linear-gradient(225deg,rgba(167,139,250,.6),rgba(45,212,191,.4),rgba(132,204,22,.3));filter:blur(2px);animation-delay:-2s;mix-blend-mode:screen}
+      @keyframes morph{0%,100%{border-radius:42% 58% 55% 45%/48% 42% 58% 52%}25%{border-radius:55% 45% 40% 60%/60% 35% 65% 40%}50%{border-radius:38% 62% 58% 42%/45% 55% 45% 55%}75%{border-radius:60% 40% 45% 55%/38% 62% 42% 58%}}
+      .aba-load-text{margin-top:20px;color:rgba(167,139,250,.5);font-size:13px;letter-spacing:.5px}
     </style>
   </head>
   <body>
     <div id="root">
-      <div class="loading-screen">
-        <div class="loading-orb"></div>
-        <p class="loading-text">Loading GMG University...</p>
+      <div class="aba-load">
+        <div class="aba-energy"></div>
+        <p class="aba-load-text">GMG University</p>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Register service worker for PWA
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('SW registered'))
-            .catch(err => console.log('SW registration failed:', err));
-        });
-      }
-    </script>
   </body>
 </html>

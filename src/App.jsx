@@ -12,7 +12,7 @@ const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestor
 const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
 const TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech/AIFDUhRnM6s61433WMNu';
 const TTS_KEY = 'sk_e0b48157805968dbb370f299b60e22001189bd85c3864040';
-const ABA_AVATAR = 'https://i.imgur.com/0be7HCF.png';
+// ABA energy blob replaces static avatar image
 const GMG_LOGO = 'https://i.imgur.com/qslzgTU.png';
 
 const BG_IMAGES = [
@@ -22,6 +22,33 @@ const BG_IMAGES = [
   'https://i.imgur.com/h8zNCw1.jpeg'
 ];
 
+
+
+/* ━━━ ABA ENERGY BLOB — replaces static purple circle ━━━ */
+function AbaBlob({ size = 28 }) {
+  return (
+    <div style={{
+      width: size, height: size, position: 'relative', flexShrink: 0
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        borderRadius: '42% 58% 55% 45% / 48% 42% 58% 52%',
+        background: 'linear-gradient(135deg, rgba(139,92,246,.85), rgba(236,72,153,.6), rgba(99,102,241,.7))',
+        filter: 'blur(0.5px)',
+        boxShadow: '0 0 ' + (size/3) + 'px rgba(139,92,246,.35)',
+        animation: 'abaBlob 4s ease-in-out infinite'
+      }}/>
+      <div style={{
+        position: 'absolute', inset: 0,
+        borderRadius: '55% 45% 40% 60% / 60% 35% 65% 40%',
+        background: 'linear-gradient(225deg, rgba(167,139,250,.5), rgba(45,212,191,.3), rgba(132,204,22,.2))',
+        filter: 'blur(1px)',
+        animation: 'abaBlob 4s ease-in-out -2s infinite',
+        mixBlendMode: 'screen'
+      }}/>
+    </div>
+  );
+}
 const VOL_META = {
   v1: { name: 'Fundraising Foundations', days: 30 },
   v2: { name: 'The GMG Way', days: 30 },
@@ -37,6 +64,7 @@ const STYLES = `
 @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.4)}50%{box-shadow:0 0 0 12px rgba(124,58,237,0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes abaBlob{0%,100%{border-radius:42% 58% 55% 45%/48% 42% 58% 52%}25%{border-radius:55% 45% 40% 60%/60% 35% 65% 40%}50%{border-radius:38% 62% 58% 42%/45% 55% 45% 55%}75%{border-radius:60% 40% 45% 55%/38% 62% 42% 58%}}
 `;
 
 /* ━━━ CINEMATIC BACKGROUND ━━━ */
@@ -135,7 +163,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
 function TypingDots() {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, padding: '4px 16px', animation: 'msgIn 0.2s ease-out' }}>
-      <img src={ABA_AVATAR} alt="" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}/>
+      <AbaBlob size={28}/>
       <div style={{
         background: 'rgba(255,255,255,0.07)', borderRadius: '18px 18px 18px 4px',
         padding: '12px 16px', display: 'flex', gap: 5, border: '1px solid rgba(255,255,255,0.06)'
@@ -541,7 +569,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style>{STYLES}</style>
       <CinematicBG/>
-      <img src={ABA_AVATAR} alt="" style={{ width: 56, height: 56, borderRadius: '50%', position: 'relative', zIndex: 1, border: '2px solid rgba(124,58,237,0.4)' }}/>
+      <img src={'https://i.imgur.com/qslzgTU.png'} alt="" style={{ width: 56, height: 56, borderRadius: '50%', position: 'relative', zIndex: 1, border: '2px solid rgba(124,58,237,0.4)' }}/>
     </div>
   );
 
@@ -593,7 +621,7 @@ export default function App() {
         </button>
 
         {/* ABA avatar + name */}
-        <img src={ABA_AVATAR} alt="" style={{ width: 34, height: 34, borderRadius: '50%', border: '1.5px solid rgba(124,58,237,0.4)' }}/>
+        <AbaBlob size={34}/>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ color: 'white', fontSize: 15, fontWeight: 600, margin: 0 }}>ABA</p>
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -625,7 +653,7 @@ export default function App() {
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: 12, paddingBottom: 100, position: 'relative', zIndex: 1 }}>
         {messages.length === 0 && !streaming && (
           <div style={{ textAlign: 'center', padding: '60px 32px', color: 'rgba(255,255,255,0.12)' }}>
-            <img src={ABA_AVATAR} alt="" style={{ width: 48, height: 48, borderRadius: '50%', marginBottom: 12, opacity: 0.4 }}/>
+            <div style={{ marginBottom: 12, opacity: 0.5 }}><AbaBlob size={48}/></div>
             <p style={{ fontSize: 13, fontWeight: 400 }}>Starting your session...</p>
           </div>
         )}
@@ -639,7 +667,7 @@ export default function App() {
               padding: '3px 14px',
               animation: i === messages.length - 1 ? 'msgIn 0.2s ease-out' : 'none'
             }}>
-              {isAba && <img src={ABA_AVATAR} alt="" style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0 }}/>}
+              {isAba && <AbaBlob size={28}/>}
               <div style={{
                 maxWidth: '82%', padding: '10px 14px',
                 borderRadius: isAba ? '18px 18px 18px 4px' : '18px 18px 4px 18px',
