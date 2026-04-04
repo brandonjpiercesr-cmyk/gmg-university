@@ -10,8 +10,8 @@ const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", auth
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
 
 const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
-const TTS_URL = 'https://api.elevenlabs.io/v1/text-to-speech/AIFDUhRnM6s61433WMNu';
-const TTS_KEY = 'sk_e0b48157805968dbb370f299b60e22001189bd85c3864040';
+const TTS_URL = 'https://abacia-services.onrender.com/api/tts/speak';
+// TTS via backend proxy — no API key needed in frontend
 // ABA energy blob replaces static avatar image
 const GMG_LOGO = 'https://i.imgur.com/qslzgTU.png';
 
@@ -410,8 +410,8 @@ export default function App() {
     try {
       const r = await fetch(TTS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'xi-api-key': TTS_KEY },
-        body: JSON.stringify({ text: text.substring(0, 500), model_id: 'eleven_turbo_v2_5' })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.substring(0, 500) })
       });
       if (r.ok) {
         const url = URL.createObjectURL(await r.blob());
