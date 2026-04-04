@@ -103,7 +103,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
         position: 'fixed', top: 0, left: 0, bottom: 0, width: 300, maxWidth: '85vw',
         background: 'rgba(15,15,20,0.95)', backdropFilter: 'blur(24px)',
         borderRight: '1px solid rgba(255,255,255,0.08)', zIndex: 91,
-        animation: 'slideIn 0.25s ease-out', display: 'flex', flexDirection: 'column'
+        animation: 'slideRight 0.25s ease-out', display: 'flex', flexDirection: 'column'
       }}>
         <div style={{ padding: '20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -364,7 +364,7 @@ export default function App() {
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
       if (next) {
-        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of 75 lessons. Check my cohort_type in the WHO YOU ARE TALKING TO section and proceed accordingly. If INTERVIEW_MODE, interview me about this topic. Otherwise, teach me.`;
+        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of 75 lessons. Check my cohort_type and proceed accordingly.`;
         setCurrentLesson(next);
       } else {
         msg += ` I've completed all 75 lessons!`;
@@ -550,7 +550,7 @@ export default function App() {
     const title = (CURRICULUM_TITLES[vol] || [])[day - 1] || `Day ${day}`;
     setCurrentLesson({ vol, day, title });
     const name = profile?.name?.split(' ')[0] || 'there';
-    streamFromAIR(`${name} here. I want to do Day ${day} of ${VOL_META[vol].name}: "${title}". Start teaching me.`);
+    streamFromAIR(`${name} here. I want to do Day ${day} of ${VOL_META[vol].name}: "${title}". Check my cohort_type and proceed accordingly.`);
   }
 
   // ━━━ RESET ━━━
@@ -569,7 +569,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <style>{STYLES}</style>
       <CinematicBG/>
-      <img src={'https://i.imgur.com/qslzgTU.png'} alt="" style={{ width: 56, height: 56, borderRadius: '50%', position: 'relative', zIndex: 1, border: '2px solid rgba(124,58,237,0.4)' }}/>
+      <div style={{ position: 'relative', zIndex: 1 }}><AbaBlob size={56}/></div>
     </div>
   );
 
@@ -679,7 +679,11 @@ export default function App() {
                   color: 'rgba(255,255,255,0.9)', fontSize: 14.5, lineHeight: 1.65,
                   whiteSpace: 'pre-wrap', margin: 0
                 }}>
-                  {msg.text}
+                  {(msg.text || '').split(/(\*\*.*?\*\*)/g).map((part, pi) =>
+                    part.startsWith('**') && part.endsWith('**')
+                      ? <strong key={pi} style={{ color: '#a78bfa', fontWeight: 600 }}>{part.slice(2, -2)}</strong>
+                      : part
+                  )}
                   {msg.streaming && <span style={{ display: 'inline-block', width: 2, height: 16, background: '#a78bfa', marginLeft: 2, animation: 'pulse 0.8s infinite', verticalAlign: 'text-bottom' }}/>}
                 </p>
               </div>
