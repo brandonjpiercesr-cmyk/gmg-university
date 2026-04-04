@@ -148,6 +148,78 @@ function TypingDots() {
   );
 }
 
+
+/* ━━━ DECK PANEL — Interactive content from GURU ━━━ */
+function DeckPanel({ deck, onClose }) {
+  if (!deck) return null;
+  const glass = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 };
+
+  return (
+    <div style={{
+      position: 'fixed', top: 0, right: 0, bottom: 0, width: 360, maxWidth: '90vw',
+      background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(24px)',
+      borderLeft: '1px solid rgba(255,255,255,0.08)', zIndex: 40,
+      display: 'flex', flexDirection: 'column', animation: 'slideIn 0.25s ease-out',
+      transform: 'translateX(0)'
+    }}>
+      <style>{'@keyframes slideRight{from{transform:translateX(100%)}to{transform:translateX(0)}}'}</style>
+      <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 600 }}>{deck.title || 'Interactive'}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>×</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
+
+        {deck.type === 'quiz' && (<div>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>{deck.question}</p>
+          {(deck.options || []).map((opt, i) => (
+            <button key={i} style={{ ...glass, width: '100%', marginBottom: 8, textAlign: 'left', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{opt}</button>
+          ))}
+        </div>)}
+
+        {deck.type === 'matching' && (<div>
+          {(deck.pairs || []).map((p, i) => (
+            <div key={i} style={{ ...glass, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13 }}>{p.left}</span>
+              <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 500 }}>{p.right}</span>
+            </div>
+          ))}
+        </div>)}
+
+        {deck.type === 'sorting' && (<div>
+          {(deck.items || []).map((item, i) => (
+            <div key={i} style={{ ...glass, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: '#a78bfa', fontWeight: 600, fontSize: 14, width: 20 }}>{i + 1}</span>
+              <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{item}</span>
+            </div>
+          ))}
+        </div>)}
+
+        {deck.type === 'scenario' && (<div>
+          <div style={{ ...glass, marginBottom: 14, borderColor: 'rgba(124,58,237,0.2)', background: 'rgba(124,58,237,0.08)' }}>
+            <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6 }}>{deck.situation}</p>
+          </div>
+          {deck.prompt && <p style={{ color: '#a78bfa', fontSize: 13, fontWeight: 500 }}>{deck.prompt}</p>}
+        </div>)}
+
+        {deck.type === 'document' && (<div>
+          <div style={{ ...glass, fontFamily: 'Georgia, serif' }}>
+            <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{deck.content}</p>
+          </div>
+        </div>)}
+
+        {deck.type === 'progress' && (<div style={{ textAlign: 'center', padding: 20 }}>
+          <p style={{ color: 'white', fontSize: 36, fontWeight: 300, marginBottom: 4 }}>{deck.completed}/{deck.total}</p>
+          <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 3, width: Math.round((deck.completed/deck.total)*100)+'%' }}/>
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{deck.message || Math.round((deck.completed/deck.total)*100)+'% complete'}</p>
+        </div>)}
+
+      </div>
+    </div>
+  );
+}
+
 /* ━━━ MAIN APP ━━━ */
 export default function App() {
   const [user, setUser] = useState(null);
@@ -161,6 +233,7 @@ export default function App() {
   const [listening, setListening] = useState(false);
   const [currentLesson, setCurrentLesson] = useState(null);
   const [initDone, setInitDone] = useState(false);
+  const [deckContent, setDeckContent] = useState(null);
 
   const endRef = useRef(null);
   const audioRef = useRef(null);
@@ -320,9 +393,19 @@ export default function App() {
               if (sentenceBuf.match(/[.!?]\s*$/)) { speakText(sentenceBuf.trim()); sentenceBuf = ''; }
             } else if (data.type === 'done') {
               const final = data.fullResponse || accumulated;
+              // ⬡B:gmg_university.deck:DETECT:extract_deck_tags:20260403⬡
+              let displayText = final;
+              const deckMatch = final.match(/\[DECK\](.*?)\[\/DECK\]/s);
+              if (deckMatch) {
+                try {
+                  const deckData = JSON.parse(deckMatch[1].trim());
+                  setDeckContent(deckData);
+                } catch {}
+                displayText = final.replace(/\[DECK\].*?\[\/DECK\]/s, '').trim();
+              }
               setMessages(prev => {
                 const copy = [...prev]; const last = copy[copy.length - 1];
-                if (last?.role === 'aba') copy[copy.length - 1] = { ...last, text: final, streaming: false };
+                if (last?.role === 'aba') copy[copy.length - 1] = { ...last, text: displayText, streaming: false };
                 return copy;
               });
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
@@ -586,6 +669,7 @@ export default function App() {
         onReset={resetProgress}
         currentLesson={currentLesson}
       />
+      <DeckPanel deck={deckContent} onClose={() => setDeckContent(null)}/>
     </div>
   );
 }
