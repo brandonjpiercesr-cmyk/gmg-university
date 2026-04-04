@@ -278,7 +278,7 @@ export default function App() {
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
       if (next) {
-        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I've completed ${completed.length} of 75 lessons. Start teaching me.`;
+        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of 75 lessons. Check my cohort_type in the WHO YOU ARE TALKING TO section and proceed accordingly. If INTERVIEW_MODE, interview me about this topic. Otherwise, teach me.`;
         setCurrentLesson(next);
       } else {
         msg += ` I've completed all 75 lessons!`;
