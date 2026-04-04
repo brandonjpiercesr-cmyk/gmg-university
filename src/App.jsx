@@ -22,8 +22,6 @@ const BG_IMAGES = [
   'https://i.imgur.com/h8zNCw1.jpeg'
 ];
 
-
-
 /* ━━━ ABA ENERGY BLOB — replaces static purple circle ━━━ */
 function AbaBlob({ size = 28 }) {
   return (
@@ -95,7 +93,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
   if (!show) return null;
   const completed = completedDays || [];
   const totalDone = completed.length;
-  const totalAll = 75;
+  const totalAll = Object.values(VOL_META).reduce((s, v) => s + v.days, 0);
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 90 }}/>
@@ -238,9 +236,9 @@ function DeckPanel({ deck, onClose }) {
         {deck.type === 'progress' && (<div style={{ textAlign: 'center', padding: 20 }}>
           <p style={{ color: 'white', fontSize: 36, fontWeight: 300, marginBottom: 4 }}>{deck.completed}/{deck.total}</p>
           <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
-            <div style={{ height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 3, width: Math.round((deck.completed/deck.total)*100)+'%' }}/>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 3, width: Math.round(((deck.completed||0)/Math.max(deck.total||1,1))*100)+'%' }}/>
           </div>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{deck.message || Math.round((deck.completed/deck.total)*100)+'% complete'}</p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>{deck.message || Math.round(((deck.completed||0)/Math.max(deck.total||1,1))*100)+'% complete'}</p>
         </div>)}
 
       </div>
@@ -311,18 +309,17 @@ export default function App() {
     } catch {}
   }
 
-  async function updateStudent(hamId, field, value) {
-    try {
-      await fetch(ADMIN_API + '/students', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, ham_id: hamId, [field]: value })
-      });
-      loadAdmin();
-    } catch {}
-  }
+  // updateStudent removed — dead code (M1)
 
   const endRef = useRef(null);
   const audioRef = useRef(null);
+  const audioUnlocked = useRef(false);
+  useEffect(() => {
+    const unlock = () => { if (audioRef.current && !audioUnlocked.current) { audioRef.current.play().then(() => { audioRef.current.pause(); audioRef.current.currentTime = 0; audioUnlocked.current = true; }).catch(() => {}); } };
+    document.addEventListener('click', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true });
+    return () => { document.removeEventListener('click', unlock); document.removeEventListener('touchstart', unlock); };
+  }, []);
   const audioQueue = useRef([]);
   const isPlaying = useRef(false);
   const recognitionRef = useRef(null);
@@ -364,7 +361,7 @@ export default function App() {
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
       if (next) {
-        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of 75 lessons. Check my cohort_type and proceed accordingly.`;
+        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of ${Object.values(VOL_META).reduce((s,v)=>s+v.days,0)} lessons. Check my cohort_type and proceed accordingly.`;
         setCurrentLesson(next);
       } else {
         msg += ` I've completed all 75 lessons!`;
@@ -649,8 +646,67 @@ export default function App() {
         }}>Out</button>
       </header>
 
+      {/* ADMIN PANEL */}
+      {adminView && isAdmin && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', position: 'relative', zIndex: 1 }}>
+          {adminLoading ? <p style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.2)' }}>Loading...</p> : <>
+          <div style={{ marginBottom: 16 }}>
+            {!showAddForm ? (
+              <button onClick={() => setShowAddForm(true)} style={{ width: '100%', padding: 12, borderRadius: 12, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', color: '#a78bfa', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}>+ Add Student by Email</button>
+            ) : (
+              <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 14 }}>
+                <input value={addForm.email} onChange={e => setAddForm({...addForm, email: e.target.value})} placeholder="Email address" style={{ width: '100%', marginBottom: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 13, outline: 'none' }}/>
+                <input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Full name" style={{ width: '100%', marginBottom: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 13, outline: 'none' }}/>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <select value={addForm.cohort} onChange={e => setAddForm({...addForm, cohort: e.target.value})} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                    <option value="NEW_COHORT">New Cohort</option><option value="FOUNDING_LINE">Founding Line</option><option value="INTERVIEW_MODE">Interview Mode</option>
+                  </select>
+                  <select value={addForm.group} onChange={e => setAddForm({...addForm, group: e.target.value})} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                    <option value="UNASSIGNED">No Group</option><option value="THE_COLLECTIVE">The Collective</option><option value="THE_MAJORITY">The Majority</option>
+                  </select>
+                </div>
+                <select value={addForm.track} onChange={e => setAddForm({...addForm, track: e.target.value})} style={{ width: '100%', marginBottom: 10, padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                  <option value="UNASSIGNED">No Track Yet</option><option value="CDO_VP_HEAD_FUNDRAISING">CDO / VP / Head of Fundraising</option><option value="DEVELOPMENT_MANAGER">Development Manager</option><option value="PROGRAMS">Programs</option><option value="OPERATIONS">Operations</option><option value="TECHNOLOGY">Technology</option>
+                </select>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={addStudent} style={{ flex: 1, padding: 10, borderRadius: 8, border: 'none', background: '#7c3aed', color: 'white', fontSize: 13, cursor: 'pointer' }}>Add</button>
+                  <button onClick={() => setShowAddForm(false)} style={{ padding: '10px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'rgba(255,255,255,0.4)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>Students ({adminStudents.length})</p>
+          {adminStudents.map(s => (
+            <div key={s.ham_id} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: 12, marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div><p style={{ color: 'white', fontSize: 14, fontWeight: 500, margin: 0 }}>{s.name}</p><p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, margin: '2px 0 0' }}>{s.email}</p></div>
+                <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: s.cohort_type === 'INTERVIEW_MODE' ? 'rgba(251,191,36,0.15)' : s.cohort_type === 'FOUNDING_LINE' ? 'rgba(16,185,129,0.15)' : 'rgba(124,58,237,0.15)', color: s.cohort_type === 'INTERVIEW_MODE' ? '#fbbf24' : s.cohort_type === 'FOUNDING_LINE' ? '#10b981' : '#a78bfa' }}>{s.cohort_type}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {s.gmg_track !== 'NOT_SET' && <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>{s.gmg_track}</span>}
+                {s.gmg_group !== 'NOT_SET' && <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>{s.gmg_group}</span>}
+                <button onClick={() => resetStudent(s.ham_id)} style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', background: 'transparent', color: '#ef4444', fontSize: 10, cursor: 'pointer' }}>Reset</button>
+              </div>
+            </div>
+          ))}
+          {adminInterviews.length > 0 && <>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>Interview Content ({adminInterviews.length})</p>
+            {adminInterviews.slice(0, 20).map((iv, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 10, padding: 10, marginBottom: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ color: '#a78bfa', fontSize: 10, fontWeight: 600 }}>{iv.ham_name || iv.ham || '?'}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{iv.created_at?.substring(0, 10) || ''}</span>
+                </div>
+                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 1.5, margin: 0 }}>{(iv.founder_answer || '').substring(0, 200)}{(iv.founder_answer || '').length > 200 ? '...' : ''}</p>
+              </div>
+            ))}
+          </>}
+          </>}
+        </div>
+      )}
+
       {/* MESSAGES AREA */}
-      <div style={{ flex: 1, overflowY: 'auto', paddingTop: 12, paddingBottom: 100, position: 'relative', zIndex: 1 }}>
+      {!adminView && <div style={{ flex: 1, overflowY: 'auto', paddingTop: 12, paddingBottom: 100, position: 'relative', zIndex: 1 }}>
         {messages.length === 0 && !streaming && (
           <div style={{ textAlign: 'center', padding: '60px 32px', color: 'rgba(255,255,255,0.12)' }}>
             <div style={{ marginBottom: 12, opacity: 0.5 }}><AbaBlob size={48}/></div>
@@ -693,10 +749,10 @@ export default function App() {
 
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
         <div ref={endRef}/>
-      </div>}
+      </div>}}
 
       {/* INPUT BAR — iMessage style */}
-      <div style={{
+      {!adminView && <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20,
         background: 'rgba(10,10,15,0.8)', backdropFilter: 'blur(24px)',
         borderTop: '1px solid rgba(255,255,255,0.06)',
