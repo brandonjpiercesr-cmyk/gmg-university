@@ -6,6 +6,23 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 // Firestore removed — progress lives in Supabase brain via backend API
 import { CURRICULUM_TITLES } from './curriculum';
 
+// ⬡B:audra.gmg_university.M17:FIX:error_boundary:20260404⬡
+class GMGErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, info) { console.error('[GMG-U] Error boundary caught:', error, info); }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', { style: { minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#0a0a0f', color: 'rgba(255,255,255,0.5)', padding: 32, textAlign: 'center' } },
+        React.createElement('p', { style: { fontSize: 16, marginBottom: 12 } }, 'Something went wrong.'),
+        React.createElement('p', { style: { fontSize: 12, color: 'rgba(255,255,255,0.3)', marginBottom: 20 } }, this.state.error?.message || ''),
+        React.createElement('button', { onClick: () => window.location.reload(), style: { padding: '10px 20px', borderRadius: 8, border: '1px solid rgba(124,58,237,0.3)', background: 'rgba(124,58,237,0.1)', color: '#a78bfa', cursor: 'pointer', fontSize: 13 } }, 'Reload')
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", authDomain: "gmg-university.firebaseapp.com", projectId: "gmg-university", storageBucket: "gmg-university.firebasestorage.app", messagingSenderId: "85247972370", appId: "1:85247972370:web:18e62a01313037292d74cb" };
 const app = initializeApp(firebaseConfig), auth = getAuth(app);
 
@@ -248,7 +265,7 @@ function DeckPanel({ deck, onClose }) {
 }
 
 /* ━━━ MAIN APP ━━━ */
-export default function App() {
+function AppInner() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -844,3 +861,5 @@ export default function App() {
     </div>
   );
 }
+
+export default function App() { return <GMGErrorBoundary><AppInner/></GMGErrorBoundary>; }
