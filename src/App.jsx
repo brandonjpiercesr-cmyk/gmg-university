@@ -558,7 +558,7 @@ function AppInner() {
               });
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
               // ⬡B:audra.gmg_university.L16:FIX:structured_completion_signal:20260404⬡
-              if (final.includes('[LESSON_COMPLETE]')) { markComplete(); displayText = displayText.replace(/\[LESSON_COMPLETE\]/g, '').trim(); }
+              displayText = displayText.replace(/\[LESSON_STARTED\]/g, '').replace(/\[LESSON_COMPLETE\]/g, '').trim(); if (final.includes('[LESSON_COMPLETE]')) markComplete();
             }
           } catch (e) { console.error('[GMG-U]', e.message); }
         }
