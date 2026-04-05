@@ -269,6 +269,11 @@ export default function App() {
   const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
   const ADMIN_API = 'https://abacia-services.onrender.com/api/gmg-university/admin';
+  // ⬡B:audra.gmg_university.M8:FIX:send_auth_token:20260404⬡
+  const getAuthHeaders = async () => {
+    try { const token = await user.getIdToken(); return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; }
+    catch { return { 'Content-Type': 'application/json' }; }
+  };
   const isAdmin = user?.email && ['brandonjpiercesr@gmail.com','brandon@globalmajoritygroup.com','eric@globalmajoritygroup.com','ericreeselanesr@gmail.com'].includes(user.email.toLowerCase());
 
   async function loadAdmin() {
@@ -276,8 +281,8 @@ export default function App() {
     setAdminLoading(true);
     try {
       const [sRes, iRes] = await Promise.all([
-        fetch(ADMIN_API + '/students?email=' + encodeURIComponent(user.email)),
-        fetch(ADMIN_API + '/interviews?email=' + encodeURIComponent(user.email))
+        fetch(ADMIN_API + '/students?email=' + encodeURIComponent(user.email), { headers: { 'Authorization': 'Bearer ' + (await user.getIdToken().catch(() => '')) } }),
+        fetch(ADMIN_API + '/interviews?email=' + encodeURIComponent(user.email), { headers: { 'Authorization': 'Bearer ' + (await user.getIdToken().catch(() => '')) } })
       ]);
       if (sRes.ok) setAdminStudents((await sRes.json()).students || []);
       if (iRes.ok) setAdminInterviews((await iRes.json()).interviews || []);
