@@ -3,13 +3,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+// Firestore removed — progress lives in Supabase brain via backend API
 import { CURRICULUM_TITLES } from './curriculum';
 
 const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", authDomain: "gmg-university.firebaseapp.com", projectId: "gmg-university", storageBucket: "gmg-university.firebasestorage.app", messagingSenderId: "85247972370", appId: "1:85247972370:web:18e62a01313037292d74cb" };
-const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
+const app = initializeApp(firebaseConfig), auth = getAuth(app);
 
 const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
+const PROGRESS_API = 'https://abacia-services.onrender.com/api/gmg-university/progress';
 const TTS_URL = 'https://abacia-services.onrender.com/api/tts/speak';
 // TTS via backend proxy — no API key needed in frontend
 // ABA energy blob replaces static avatar image
@@ -326,18 +327,23 @@ export default function App() {
   const textareaRef = useRef(null);
 
   // ━━━ AUTH ━━━
+  // ⬡B:audra.gmg_university.H15:FIX:unified_progress_standalone:20260404⬡
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async u => {
       if (u) {
         setUser(u);
-        const ref = doc(db, 'users', u.uid);
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          setProfile(snap.data());
-        } else {
-          const np = { email: u.email, name: u.displayName, photoURL: u.photoURL, completedDays: [], xp: 0, createdAt: serverTimestamp() };
-          await setDoc(ref, np);
-          setProfile(np);
+        // Load progress from unified Supabase backend (not Firestore)
+        try {
+          const r = await fetch(PROGRESS_API + '?email=' + encodeURIComponent(u.email));
+          if (r.ok) {
+            const progress = await r.json();
+            setProfile({ email: u.email, name: u.displayName, photoURL: u.photoURL, ...progress });
+          } else {
+            setProfile({ email: u.email, name: u.displayName, photoURL: u.photoURL, completedDays: [], xp: 0 });
+          }
+        } catch (e) {
+          console.error('[GMG-U] Progress load error:', e.message);
+          setProfile({ email: u.email, name: u.displayName, photoURL: u.photoURL, completedDays: [], xp: 0 });
         }
       } else {
         setUser(null); setProfile(null); setMessages([]); setInitDone(false);
@@ -531,15 +537,20 @@ export default function App() {
 
   // ━━━ COMPLETE ━━━
   async function markComplete() {
-    if (!currentLesson || !user?.uid) return;
+    if (!currentLesson || !user?.email) return;
     const key = `${currentLesson.vol}-d${currentLesson.day}`;
     if (profile?.completedDays?.includes(key)) return;
     try {
-      await updateDoc(doc(db, 'users', user.uid), { completedDays: arrayUnion(key), xp: (profile.xp || 0) + 100 });
-      const newCompleted = [...(profile.completedDays || []), key];
-      setProfile(p => ({ ...p, completedDays: newCompleted, xp: (p.xp || 0) + 100 }));
-      setCurrentLesson(getNextLesson(newCompleted));
-    } catch {}
+      const r = await fetch(PROGRESS_API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, completedKey: key })
+      });
+      if (r.ok) {
+        const updated = await r.json();
+        setProfile(p => ({ ...p, ...updated }));
+        setCurrentLesson(getNextLesson(updated.completedDays || []));
+      }
+    } catch (e) { console.error('[GMG-U] Complete error:', e.message); }
   }
 
   // ━━━ SELECT FROM SIDEBAR ━━━
@@ -552,12 +563,15 @@ export default function App() {
 
   // ━━━ RESET ━━━
   async function resetProgress() {
-    if (!user?.uid) return;
+    if (!user?.email) return;
     try {
-      await setDoc(doc(db, 'users', user.uid), { completedDays: [], xp: 0, lastActivity: new Date().toISOString() }, { merge: true });
+      await fetch(PROGRESS_API, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, completedDays: [], xp: 0 })
+      });
       setProfile(p => ({ ...p, completedDays: [], xp: 0 }));
       setMessages([]); setInitDone(false); setCurrentLesson(null);
-    } catch {}
+    } catch (e) { console.error('[GMG-U] Reset error:', e.message); }
   }
 
   // ━━━━━━━━━━━━━━━ RENDER ━━━━━━━━━━━━━━━
