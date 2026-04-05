@@ -1046,7 +1046,7 @@ function AppInner() {
 
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
         <div ref={endRef}/>
-      </div>}}
+      </div>}
 
       {/* INPUT BAR — iMessage style */}
       {!adminView && <div style={{
