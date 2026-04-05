@@ -193,6 +193,47 @@ function TypingDots() {
 }
 
 
+/* ━━━ QUIZ DECK — Interactive quiz with scoring ━━━ */
+// ⬡B:audra.gmg_university.L6:FIX:quiz_interactivity:20260404⬡
+function QuizDeck({ deck, glass }) {
+  const [selected, setSelected] = useState(null);
+  const [revealed, setRevealed] = useState(false);
+  const correct = deck.correct;
+  const handlePick = (opt, i) => {
+    if (revealed) return;
+    setSelected(i);
+    setRevealed(true);
+  };
+  const isCorrect = (opt, i) => {
+    if (!revealed) return null;
+    if (opt === correct || String.fromCharCode(65 + i) === correct) return 'correct';
+    if (i === selected) return 'wrong';
+    return null;
+  };
+  return (
+    <div>
+      <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>{deck.question}</p>
+      {(deck.options || []).map((opt, i) => {
+        const result = isCorrect(opt, i);
+        return (
+          <button key={i} onClick={() => handlePick(opt, i)} style={{
+            ...glass, width: '100%', marginBottom: 8, textAlign: 'left', cursor: revealed ? 'default' : 'pointer',
+            color: result === 'correct' ? '#10b981' : result === 'wrong' ? '#ef4444' : 'rgba(255,255,255,0.8)',
+            fontSize: 13,
+            borderColor: result === 'correct' ? 'rgba(16,185,129,0.4)' : result === 'wrong' ? 'rgba(239,68,68,0.4)' : undefined,
+            background: result === 'correct' ? 'rgba(16,185,129,0.12)' : result === 'wrong' ? 'rgba(239,68,68,0.08)' : undefined
+          }}>
+            {String.fromCharCode(65 + i)}. {opt} {result === 'correct' && ' ✓'}{result === 'wrong' && ' ✗'}
+          </button>
+        );
+      })}
+      {revealed && <p style={{ color: selected !== null && isCorrect(deck.options[selected], selected) === 'correct' ? '#10b981' : '#ef4444', fontSize: 13, marginTop: 8, fontWeight: 500 }}>
+        {isCorrect(deck.options[selected], selected) === 'correct' ? 'Correct!' : 'Not quite. The answer is ' + correct + '.'}
+      </p>}
+    </div>
+  );
+}
+
 /* ━━━ DECK PANEL — Interactive content from GURU ━━━ */
 function DeckPanel({ deck, onClose }) {
   if (!deck) return null;
@@ -213,12 +254,7 @@ function DeckPanel({ deck, onClose }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
 
-        {deck.type === 'quiz' && (<div>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, marginBottom: 14 }}>{deck.question}</p>
-          {(deck.options || []).map((opt, i) => (
-            <button key={i} style={{ ...glass, width: '100%', marginBottom: 8, textAlign: 'left', cursor: 'pointer', color: 'rgba(255,255,255,0.8)', fontSize: 13 }}>{opt}</button>
-          ))}
-        </div>)}
+        {deck.type === 'quiz' && (<QuizDeck deck={deck} glass={glass}/>)}
 
         {deck.type === 'matching' && (<div>
           {(deck.pairs || []).map((p, i) => (
