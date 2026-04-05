@@ -269,27 +269,7 @@ const BG_IMAGES = [
   'https://i.imgur.com/h8zNCw1.jpeg'
 ];
 
-/* ━━━ ABA ENERGY BLOB — replaces static purple circle ━━━ */
-// AbaBlob removed — real ABAConsciousness below>
-      <div style={{
-        position: 'absolute', inset: 0,
-        borderRadius: '42% 58% 55% 45% / 48% 42% 58% 52%',
-        background: 'linear-gradient(135deg, rgba(139,92,246,.85), rgba(236,72,153,.6), rgba(99,102,241,.7))',
-        filter: 'blur(0.5px)',
-        boxShadow: '0 0 ' + (size/3) + 'px rgba(139,92,246,.35)',
-        animation: 'abaBlob 4s ease-in-out infinite'
-      }}/>
-      <div style={{
-        position: 'absolute', inset: 0,
-        borderRadius: '55% 45% 40% 60% / 60% 35% 65% 40%',
-        background: 'linear-gradient(225deg, rgba(167,139,250,.5), rgba(45,212,191,.3), rgba(132,204,22,.2))',
-        filter: 'blur(1px)',
-        animation: 'abaBlob 4s ease-in-out -2s infinite',
-        mixBlendMode: 'screen'
-      }}/>
-    </div>
-  );
-}
+/* AbaBlob removed — using real ABAConsciousness component */
 const VOL_META = {
   v1: { name: 'Fundraising Foundations', days: 30 },
   v2: { name: 'The GMG Way', days: 30 },
