@@ -281,7 +281,7 @@ export default function App() {
       ]);
       if (sRes.ok) setAdminStudents((await sRes.json()).students || []);
       if (iRes.ok) setAdminInterviews((await iRes.json()).interviews || []);
-    } catch {}
+    } catch (e) { console.error('[GMG-U]', e.message); }
     setAdminLoading(false);
   }
 
@@ -296,7 +296,7 @@ export default function App() {
         })
       });
       if (r.ok) { setShowAddForm(false); setAddForm({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' }); loadAdmin(); }
-    } catch {}
+    } catch (e) { console.error('[GMG-U]', e.message); }
   }
 
   async function resetStudent(hamId) {
@@ -307,7 +307,7 @@ export default function App() {
         body: JSON.stringify({ email: user.email })
       });
       loadAdmin();
-    } catch {}
+    } catch (e) { console.error('[GMG-U]', e.message); }
   }
 
   // updateStudent removed — dead code (M1)
@@ -421,7 +421,7 @@ export default function App() {
         audioQueue.current.push(url);
         playNext();
       }
-    } catch {}
+    } catch (e) { console.error('[GMG-U]', e.message); }
   }
 
   function playNext() {
@@ -489,7 +489,7 @@ export default function App() {
                 try {
                   const deckData = JSON.parse(deckMatch[1].trim());
                   setDeckContent(deckData);
-                } catch {}
+                } catch (e) { console.error('[GMG-U]', e.message); }
                 displayText = final.replace(/\[DECK\].*?\[\/DECK\]/s, '').trim();
               }
               setMessages(prev => {
@@ -500,7 +500,7 @@ export default function App() {
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
               if (final.includes('LESSON_COMPLETE') || final.toLowerCase().includes('lesson is complete')) markComplete();
             }
-          } catch {}
+          } catch (e) { console.error('[GMG-U]', e.message); }
         }
       }
     } catch {
