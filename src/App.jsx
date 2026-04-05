@@ -305,7 +305,7 @@ const STYLES = `
 @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.4)}50%{box-shadow:0 0 0 12px rgba(124,58,237,0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes abaBlob{0%,100%{border-radius:42% 58% 55% 45%/48% 42% 58% 52%}25%{border-radius:55% 45% 40% 60%/60% 35% 65% 40%}50%{border-radius:38% 62% 58% 42%/45% 55% 45% 55%}75%{border-radius:60% 40% 45% 55%/38% 62% 42% 58%}}
+
 `;
 
 /* ━━━ CINEMATIC BACKGROUND ━━━ */
