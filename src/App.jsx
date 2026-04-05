@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // Firestore removed — progress lives in Supabase brain via backend API
+// Note: curriculum.js also exports V1_CONTENT, V2_CONTENT, V3_CONTENT (65K) but only TITLES is used
 import { CURRICULUM_TITLES } from './curriculum';
 
 // ⬡B:audra.gmg_university.M17:FIX:error_boundary:20260404⬡
@@ -556,7 +557,8 @@ function AppInner() {
                 return copy;
               });
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
-              if (final.includes('LESSON_COMPLETE') || final.toLowerCase().includes('lesson is complete')) markComplete();
+              // ⬡B:audra.gmg_university.L16:FIX:structured_completion_signal:20260404⬡
+              if (final.includes('[LESSON_COMPLETE]')) { markComplete(); displayText = displayText.replace(/\[LESSON_COMPLETE\]/g, '').trim(); }
             }
           } catch (e) { console.error('[GMG-U]', e.message); }
         }
