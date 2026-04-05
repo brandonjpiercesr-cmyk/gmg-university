@@ -233,7 +233,26 @@ const ABAConsciousness = ({ size = 200, state = 'idle' }) => {
       
       animationRef.current = requestAnimationFrame(animate);
     };
-
+    
+    animate();
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [size]);
+  
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        width: size,
+        height: size
+      }}
+    />
+  );
+};
 
 // ⬡B:audra.gmg_university.M17:FIX:error_boundary:20260404⬡
 class GMGErrorBoundary extends React.Component {
