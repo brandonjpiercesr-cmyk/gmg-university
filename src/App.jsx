@@ -547,6 +547,7 @@ function AppInner() {
   const [adminStudents, setAdminStudents] = useState([]);
   const [adminInterviews, setAdminInterviews] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [testMode, setTestMode] = useState({ cohort: 'INTEREST_MEMBER', track: 'PROGRAMS', block: 0, day: 1 });
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
@@ -595,6 +596,32 @@ function AppInner() {
       });
       loadAdmin();
     } catch (e) { console.error('[GMG-U]', e.message); }
+  }
+
+  // ⬡B:audra.gmg_university.restructure:CODE:test_mode:20260407⬡
+  async function simulateDay() {
+    setAdminView(false);
+    setMessages([]);
+    const c = testMode.cohort;
+    const t = testMode.track;
+    const b = testMode.block;
+    const d = testMode.day;
+    // Load the title for this day from the curriculum endpoint
+    let title = 'Day ' + d;
+    try {
+      const cr = await fetch(PROGRESS_API.replace('/progress', '/curriculum') + '?cohort_type=' + encodeURIComponent(c) + '&track=' + encodeURIComponent(t));
+      if (cr.ok) {
+        const data = await cr.json();
+        const block = (data.blocks || []).find(bl => bl.block === b);
+        if (block && block.days && block.days[d - 1]) title = block.days[d - 1];
+      }
+    } catch (e) { console.error('[GMG-U] Test mode curriculum:', e.message); }
+    setCurrentLesson({ block: b, day: d, title, blockName: 'Block ' + b });
+    let msg = 'TEST MODE SIMULATION. I am simulating a ' + c + ' student';
+    if (c === 'FOUNDING_LINE') msg += ' on the ' + t + ' track';
+    msg += '. Block ' + b + ' Day ' + d + ': "' + title + '". Treat me as this student type and teach/assess accordingly. My cohort_type is ' + c + '.';
+    if (c === 'INTERVIEW_MODE') msg += ' Interview me on this topic — share your research perspective first, then ask for my take.';
+    streamFromAIR(msg, true);
   }
 
   // updateStudent removed — dead code (M1)
@@ -1016,6 +1043,36 @@ function AppInner() {
               </div>
             ))}
           </>}
+          {/* TEST MODE — founders simulate any student experience */}
+          <div style={{ marginTop: 20, background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: 12, padding: 14 }}>
+            <p style={{ color: '#fbbf24', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 }}>Test Mode</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginBottom: 10, lineHeight: 1.4 }}>Simulate any student experience. Pick a cohort type, track, block, and day — then experience exactly what they would see.</p>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <select value={testMode.cohort} onChange={e => { const c = e.target.value; setTestMode(t => ({ ...t, cohort: c, block: c === 'INTEREST_MEMBER' ? 0 : 1 })); }} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(251,191,36,0.2)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                <option value="INTEREST_MEMBER">Interest Member</option>
+                <option value="FOUNDING_LINE">Founding Line</option>
+                <option value="INTERVIEW_MODE">Founder Interview</option>
+              </select>
+              {testMode.cohort === 'FOUNDING_LINE' && <select value={testMode.track} onChange={e => setTestMode(t => ({ ...t, track: e.target.value }))} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(251,191,36,0.2)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                <option value="CDO_VP_HEAD_FUNDRAISING">BJ — CDO/VP</option>
+                <option value="DEVELOPMENT_MANAGER">CJ — Dev Manager</option>
+                <option value="PROGRAMS">Vante — Programs</option>
+                <option value="OPERATIONS">Dwayne — Ops</option>
+              </select>}
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <select value={testMode.block} onChange={e => setTestMode(t => ({ ...t, block: parseInt(e.target.value), day: 1 }))} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(251,191,36,0.2)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
+                {testMode.cohort === 'INTEREST_MEMBER' && <option value={0}>Block 0 — Brotherhood</option>}
+                <option value={1}>Block 1 — Foundations</option>
+                <option value={2}>Block 2 — Track Specific</option>
+                <option value={3}>Block 3 — Deeper</option>
+                <option value={4}>Block 4 — CPP/Resume</option>
+                <option value={5}>Block 5 — Capstone</option>
+              </select>
+              <input type="number" min={1} max={15} value={testMode.day} onChange={e => setTestMode(t => ({ ...t, day: parseInt(e.target.value) || 1 }))} style={{ width: 60, padding: 8, borderRadius: 8, border: '1px solid rgba(251,191,36,0.2)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12, textAlign: 'center' }}/>
+            </div>
+            <button onClick={simulateDay} style={{ width: '100%', padding: 10, borderRadius: 8, border: 'none', background: 'rgba(251,191,36,0.2)', color: '#fbbf24', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Simulate Day {testMode.day} of Block {testMode.block}</button>
+          </div>
           </>}
         </div>
       )}
