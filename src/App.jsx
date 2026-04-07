@@ -543,7 +543,7 @@ function AppInner() {
   const [adminInterviews, setAdminInterviews] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' });
+  const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
   const ADMIN_API = 'https://abacia-services.onrender.com/api/gmg-university/admin';
   // ⬡B:audra.gmg_university.M8:FIX:send_auth_token:20260404⬡
@@ -577,7 +577,7 @@ function AppInner() {
           cohort_type: addForm.cohort, gmg_track: addForm.track, gmg_group: addForm.group
         })
       });
-      if (r.ok) { setShowAddForm(false); setAddForm({ email: '', name: '', cohort: 'NEW_COHORT', track: 'UNASSIGNED', group: 'UNASSIGNED' }); loadAdmin(); }
+      if (r.ok) { setShowAddForm(false); setAddForm({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' }); loadAdmin(); }
     } catch (e) { console.error('[GMG-U]', e.message); }
   }
 
@@ -956,7 +956,7 @@ function AppInner() {
                 <input value={addForm.name} onChange={e => setAddForm({...addForm, name: e.target.value})} placeholder="Full name" style={{ width: '100%', marginBottom: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'white', fontSize: 13, outline: 'none' }}/>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <select value={addForm.cohort} onChange={e => setAddForm({...addForm, cohort: e.target.value})} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
-                    <option value="NEW_COHORT">New Cohort</option><option value="FOUNDING_LINE">Founding Line</option><option value="INTERVIEW_MODE">Interview Mode</option>
+                    <option value="INTEREST_MEMBER">Interest Member</option><option value="NEW_COHORT">New Cohort (Legacy)</option><option value="FOUNDING_LINE">Founding Line</option><option value="INTERVIEW_MODE">Interview Mode</option>
                   </select>
                   <select value={addForm.group} onChange={e => setAddForm({...addForm, group: e.target.value})} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(15,15,20,0.9)', color: 'white', fontSize: 12 }}>
                     <option value="UNASSIGNED">No Group</option><option value="THE_COLLECTIVE">The Collective</option><option value="THE_MAJORITY">The Majority</option>
