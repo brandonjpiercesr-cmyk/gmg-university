@@ -331,11 +331,13 @@ function CinematicBG() {
 }
 
 /* ━━━ LESSON SIDEBAR ━━━ */
-function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, currentLesson }) {
+// ⬡B:audra.gmg_university.restructure:FIX:block_aware_sidebar:20260407⬡
+function LessonSidebar({ show, onClose, completedDays, onSelectBlock, onReset, currentLesson, curriculum }) {
   if (!show) return null;
   const completed = completedDays || [];
+  const blocks = curriculum?.blocks || [];
+  const totalAll = blocks.reduce((s, b) => s + (b.days || []).length, 0);
   const totalDone = completed.length;
-  const totalAll = Object.values(VOL_META).reduce((s, v) => s + v.days, 0);
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 90 }}/>
@@ -352,22 +354,24 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
           </div>
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 2, width: `${(totalDone / totalAll) * 100}%`, transition: 'width 0.4s' }}/>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg, #7c3aed, #a78bfa)', borderRadius: 2, width: totalAll > 0 ? `${(totalDone / totalAll) * 100}%` : '0%', transition: 'width 0.4s' }}/>
             </div>
             <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, whiteSpace: 'nowrap' }}>{totalDone}/{totalAll}</span>
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {Object.entries(VOL_META).map(([vol, meta]) => (
-            <div key={vol}>
-              <div style={{ padding: '12px 16px 6px', color: '#a78bfa', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>{meta.name}</div>
-              {(CURRICULUM_TITLES[vol] || []).map((title, i) => {
+          {blocks.map(block => (
+            <div key={block.block}>
+              <div style={{ padding: '12px 16px 6px', color: block.block === 0 ? '#fbbf24' : '#a78bfa', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                {block.block === 0 ? 'Block 0' : 'Block ' + block.block}{block.track && block.track !== 'UNASSIGNED' ? ' · ' + block.track.replace(/_/g, ' ') : ''} — {block.name}
+              </div>
+              {(block.days || []).map((title, i) => {
                 const dayNum = i + 1;
-                const key = `${vol}-d${dayNum}`;
+                const key = 'b' + block.block + '-d' + dayNum;
                 const done = completed.includes(key);
-                const isCurrent = currentLesson?.vol === vol && currentLesson?.day === dayNum;
+                const isCurrent = currentLesson?.block === block.block && currentLesson?.day === dayNum;
                 return (
-                  <button key={key} onClick={() => { onSelect(vol, dayNum); onClose(); }} style={{
+                  <button key={key} onClick={() => { onSelectBlock(block.block, dayNum, title, block.name); onClose(); }} style={{
                     width: '100%', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
                     background: isCurrent ? 'rgba(124,58,237,0.15)' : 'transparent',
                     border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -378,7 +382,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
                       fontSize: 10, fontWeight: 600, flexShrink: 0,
                       background: done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)',
                       color: done ? '#10b981' : 'rgba(255,255,255,0.3)',
-                      border: `1px solid ${done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'}`
+                      border: '1px solid ' + (done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')
                     }}>{done ? '✓' : dayNum}</span>
                     <span style={{ color: done ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.3 }}>{title}</span>
                   </button>
@@ -388,7 +392,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelect, onReset, curren
           ))}
         </div>
         <div style={{ padding: 12, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <button onClick={() => { if (window.confirm('Reset ALL progress to 0/75? This cannot be undone.')) onReset(); }} style={{
+          <button onClick={() => { if (window.confirm('Reset ALL progress? This cannot be undone.')) onReset(); }} style={{
             width: '100%', padding: 10, borderRadius: 8,
             border: '1px solid rgba(239,68,68,0.25)', background: 'rgba(239,68,68,0.06)',
             color: '#ef4444', fontSize: 12, cursor: 'pointer', fontWeight: 500
@@ -538,6 +542,7 @@ function AppInner() {
   const [currentLesson, setCurrentLesson] = useState(null);
   const [initDone, setInitDone] = useState(false);
   const [deckContent, setDeckContent] = useState(null);
+  const [curriculum, setCurriculum] = useState(null);
   const [adminView, setAdminView] = useState(false);
   const [adminStudents, setAdminStudents] = useState([]);
   const [adminInterviews, setAdminInterviews] = useState([]);
@@ -821,7 +826,7 @@ function AppInner() {
   // ━━━ COMPLETE ━━━
   async function markComplete() {
     if (!currentLesson || !user?.email) return;
-    const key = `${currentLesson.vol}-d${currentLesson.day}`;
+    const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
     if (profile?.completedDays?.includes(key)) return;
     try {
       const r = await fetch(PROGRESS_API, {
@@ -1114,7 +1119,7 @@ function AppInner() {
         show={showSidebar}
         onClose={() => setShowSidebar(false)}
         completedDays={profile?.completedDays}
-        onSelect={selectLesson}
+        onSelectBlock={selectBlockLesson} curriculum={curriculum}
         onReset={resetProgress}
         currentLesson={currentLesson}
       />
