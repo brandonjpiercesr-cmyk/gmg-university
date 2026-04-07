@@ -643,6 +643,19 @@ function AppInner() {
   // ━━━ AUTO-SCROLL ━━━
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streaming]);
 
+  // ━━━ LOAD CURRICULUM FROM BACKEND ━━━
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      try {
+        const cohort = profile.cohort_type || 'FOUNDING_LINE';
+        const track = profile.gmg_track || 'UNASSIGNED';
+        const r = await fetch(PROGRESS_API.replace('/progress', '/curriculum') + '?cohort_type=' + encodeURIComponent(cohort) + '&track=' + encodeURIComponent(track));
+        if (r.ok) setCurriculum(await r.json());
+      } catch (e) { console.error('[GMG-U] Curriculum load:', e.message); }
+    })();
+  }, [profile]);
+
   // ━━━ AUTO-INIT: ABA greets on login ━━━
   useEffect(() => {
     if (user && profile && !initDone && !streaming) {
@@ -654,10 +667,10 @@ function AppInner() {
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
       if (next) {
-        msg += ` My next lesson is Day ${next.day} of ${VOL_META[next.vol].name}: "${next.title}". I have completed ${completed.length} of ${Object.values(VOL_META).reduce((s,v)=>s+v.days,0)} lessons. Check my cohort_type and proceed accordingly.`;
+        msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' lessons. Check my cohort_type and proceed accordingly.';
         setCurrentLesson(next);
       } else {
-        msg += ` I've completed all 75 lessons!`;
+        msg += ' I have completed all lessons!';
       }
       streamFromAIR(msg, true);
     }
@@ -684,11 +697,11 @@ function AppInner() {
 
   // ━━━ HELPERS ━━━
   function getNextLesson(completed) {
-    for (const [vol, meta] of Object.entries(VOL_META)) {
-      for (let d = 1; d <= meta.days; d++) {
-        if (!completed.includes(`${vol}-d${d}`)) {
-          return { vol, day: d, title: (CURRICULUM_TITLES[vol] || [])[d - 1] || `Day ${d}` };
-        }
+    if (!curriculum?.blocks) return null;
+    for (const block of curriculum.blocks) {
+      for (let i = 0; i < (block.days || []).length; i++) {
+        const key = 'b' + block.block + '-d' + (i + 1);
+        if (!completed.includes(key)) return { block: block.block, day: i + 1, title: block.days[i], blockName: block.name };
       }
     }
     return null;
