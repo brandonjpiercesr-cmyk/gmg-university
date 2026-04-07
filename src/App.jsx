@@ -4,8 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // Firestore removed — progress lives in Supabase brain via backend API
-// Note: curriculum.js also exports V1_CONTENT, V2_CONTENT, V3_CONTENT (65K) but only TITLES is used
-import { CURRICULUM_TITLES } from './curriculum';
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
 // Real ABAConsciousness canvas component — Brandon's organic energy blob
@@ -289,11 +287,11 @@ const BG_IMAGES = [
 ];
 
 /* AbaBlob removed — using real ABAConsciousness component */
-const VOL_META = {
-  v1: { name: 'Fundraising Foundations', days: 30 },
-  v2: { name: 'The GMG Way', days: 30 },
-  v3: { name: 'CPP Model', days: 15 }
-};
+// VOL_META removed — curriculum loaded from backend
+
+
+
+
 
 /* ━━━ ANIMATIONS ━━━ */
 const STYLES = `
@@ -888,13 +886,7 @@ function AppInner() {
     } catch (e) { console.error('[GMG-U] Complete error:', e.message); }
   }
 
-  // ━━━ SELECT FROM SIDEBAR ━━━
-  function selectLesson(vol, day) {
-    const title = (CURRICULUM_TITLES[vol] || [])[day - 1] || `Day ${day}`;
-    setCurrentLesson({ vol, day, title });
-    const name = profile?.name?.split(' ')[0] || 'there';
-    streamFromAIR(`${name} here. I want to do Day ${day} of ${VOL_META[vol].name}: "${title}". Check my cohort_type and proceed accordingly.`);
-  }
+  // selectLesson removed — replaced by selectBlockLesson (block-aware)
 
   // ━━━ RESET ━━━
   async function resetProgress() {
