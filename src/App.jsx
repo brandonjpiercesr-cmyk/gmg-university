@@ -548,6 +548,8 @@ function AppInner() {
   const [adminInterviews, setAdminInterviews] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [testMode, setTestMode] = useState({ cohort: 'INTEREST_MEMBER', track: 'PROGRAMS', block: 0, day: 1 });
+  const [cohortBriefing, setCohortBriefing] = useState([]);
+  const [assessments, setAssessments] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
@@ -569,6 +571,11 @@ function AppInner() {
       ]);
       if (sRes.ok) setAdminStudents((await sRes.json()).students || []);
       if (iRes.ok) setAdminInterviews((await iRes.json()).interviews || []);
+      // Load graduation assessments from brain
+      try {
+        const aRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?source=ilike.gmg.university.assessment.%25.block0&select=source,content,created_at&order=created_at.desc&limit=20', { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' } });
+        if (aRes.ok) setAssessments(await aRes.json());
+      } catch (e) { console.error('[GMG-U] Assessments:', e.message); }
     } catch (e) { console.error('[GMG-U]', e.message); }
     setAdminLoading(false);
   }
@@ -1031,6 +1038,43 @@ function AppInner() {
               </div>
             </div>
           ))}
+          {/* GRADUATION ALERTS — students who completed Block 0 */}
+          {assessments.length > 0 && <>
+            <p style={{ color: 'rgba(16,185,129,0.8)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>Graduation Alerts ({assessments.length})</p>
+            {assessments.map((a, i) => {
+              const hamId = (a.source || '').split('.')[3] || '?';
+              return (
+                <div key={i} style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ color: '#10b981', fontSize: 12, fontWeight: 600 }}>{hamId} — Block 0 Complete</span>
+                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{(a.created_at || '').substring(0, 10)}</span>
+                  </div>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 1.5, margin: 0 }}>{(typeof a.content === 'string' ? a.content : JSON.stringify(a.content)).substring(0, 300)}{(typeof a.content === 'string' ? a.content : '').length > 300 ? '...' : ''}</p>
+                </div>
+              );
+            })}
+          </>}
+
+          {/* COHORT BRIEFING — recent student activity */}
+          {adminStudents.length > 0 && <>
+            <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>Cohort Progress</p>
+            {adminStudents.filter(s => s.cohort_type !== 'INTERVIEW_MODE').map(s => {
+              const completed = s.completedDays || [];
+              const block0Done = completed.filter(k => k.startsWith('b0-')).length;
+              const block1Done = completed.filter(k => k.startsWith('b1-')).length;
+              const isInterest = s.cohort_type === 'INTEREST_MEMBER';
+              const totalBlocks = isInterest ? 6 : 5;
+              return (
+                <div key={s.ham_id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', marginBottom: 6 }}>
+                  <span style={{ color: 'white', fontSize: 12, fontWeight: 500, flex: 1, minWidth: 0 }}>{s.name}</span>
+                  {isInterest && <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 9, background: block0Done >= 7 ? 'rgba(16,185,129,0.15)' : 'rgba(251,191,36,0.1)', color: block0Done >= 7 ? '#10b981' : '#fbbf24' }}>B0: {block0Done}/7</span>}
+                  <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 9, background: block1Done >= 15 ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: block1Done >= 15 ? '#10b981' : 'rgba(255,255,255,0.4)' }}>B1: {block1Done}/15</span>
+                  <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 10 }}>{completed.length} total</span>
+                </div>
+              );
+            })}
+          </>}
+
           {adminInterviews.length > 0 && <>
             <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>Interview Content ({adminInterviews.length})</p>
             {adminInterviews.slice(0, 20).map((iv, i) => (
