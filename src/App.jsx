@@ -970,21 +970,20 @@ function AppInner() {
   );
 
   if (!user) return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <style>{STYLES}</style>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
       <CinematicBG/>
-      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 320, animation: 'fadeIn 0.6s ease-out' }}>
-        <img src={GMG_LOGO} alt="GMG" style={{ width: 96, height: 96, marginBottom: 20 }}/>
-        <h1 style={{ fontSize: 24, fontWeight: 300, color: 'white', fontFamily: 'Georgia, serif', letterSpacing: 1 }}>
-          GMG <span style={{ color: '#a78bfa' }}>University</span>
-        </h1>
-        <p style={{ color: 'rgba(255,255,255,0.35)', marginTop: 6, fontSize: 13 }}>Lane-Pierce Fellowship Program</p>
+      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 24px' }}>
+        <ABAConsciousness size={80}/>
+        <h1 style={{ color: 'white', fontSize: 26, fontWeight: 700, marginTop: 20, marginBottom: 4, letterSpacing: -0.5 }}>GMG University</h1>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginBottom: 8 }}>Global Majority Group</p>
+        <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12, maxWidth: 320, margin: '0 auto 28px', lineHeight: 1.5 }}>AI-powered nonprofit education. Personalized curriculum. Real-world skills from real practitioners.</p>
         <button onClick={() => signInWithPopup(auth, new GoogleAuthProvider())} style={{
-          marginTop: 36, width: '100%', padding: '15px 24px', borderRadius: 14,
-          background: 'linear-gradient(135deg, #7c3aed, #9333ea)', color: 'white',
-          border: 'none', fontSize: 15, fontWeight: 500, cursor: 'pointer',
-          boxShadow: '0 8px 32px rgba(124,58,237,0.3)'
-        }}>Continue with Google</button>
+          padding: '14px 36px', borderRadius: 14,
+          background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.35)',
+          color: '#a78bfa', fontSize: 15, cursor: 'pointer', fontWeight: 600,
+          backdropFilter: 'blur(12px)'
+        }}>Sign in with Google</button>
+        <p style={{ color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 20 }}>Powered by ABA</p>
       </div>
     </div>
   );
@@ -1200,17 +1199,11 @@ function AppInner() {
                 border: `1px solid ${isAba ? 'rgba(255,255,255,0.06)' : 'rgba(124,58,237,0.3)'}`,
                 backdropFilter: 'blur(8px)'
               }}>
-                <p style={{
-                  color: 'rgba(255,255,255,0.9)', fontSize: 14.5, lineHeight: 1.65,
-                  whiteSpace: 'pre-wrap', margin: 0
-                }}>
-                  {(msg.text || '').split(/(\*\*.*?\*\*)/g).map((part, pi) =>
-                    part.startsWith('**') && part.endsWith('**')
-                      ? <strong key={pi} style={{ color: '#a78bfa', fontWeight: 600 }}>{part.slice(2, -2)}</strong>
-                      : part
-                  )}
+                <div style={{ margin: 0 }}>
+                  {msg.role === 'aba' && !msg.streaming ? renderMd((msg.text || '').replace(/\[LESSON_STARTED\]/g,'').replace(/\[LESSON_COMPLETE\]/g,'').trim()) : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14.5, lineHeight: 1.65, whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</p>}
                   {msg.streaming && <span style={{ display: 'inline-block', width: 2, height: 16, background: '#a78bfa', marginLeft: 2, animation: 'pulse 0.8s infinite', verticalAlign: 'text-bottom' }}/>}
-                </p>
+                  {msg.time && !msg.streaming && <p style={{ color: 'rgba(255,255,255,0.08)', fontSize: 9, marginTop: 4, textAlign: msg.role === 'aba' ? 'left' : 'right' }}>{new Date(msg.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+                </div>
               </div>
             </div>
           );
