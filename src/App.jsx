@@ -252,6 +252,53 @@ const ABAConsciousness = ({ size = 200, state = 'idle' }) => {
   );
 };
 
+
+// ⬡B:audra.gmg_university.ui:CODE:markdown_renderer:20260407⬡
+function renderMd(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let listItems = [];
+  const flushList = () => { if (listItems.length > 0) { elements.push(React.createElement('ul', { key: 'ul-' + elements.length, style: { margin: '6px 0', paddingLeft: 18 } }, listItems)); listItems = []; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { flushList(); elements.push(React.createElement('div', { key: 'br-' + i, style: { height: 8 } })); continue; }
+    if (trimmed.startsWith('### ')) { flushList(); elements.push(React.createElement('p', { key: 'h3-' + i, style: { color: '#a78bfa', fontSize: 13, fontWeight: 600, margin: '8px 0 4px' } }, inlineMd(trimmed.slice(4)))); continue; }
+    if (trimmed.startsWith('## ')) { flushList(); elements.push(React.createElement('p', { key: 'h2-' + i, style: { color: '#a78bfa', fontSize: 14, fontWeight: 600, margin: '10px 0 4px' } }, inlineMd(trimmed.slice(3)))); continue; }
+    if (trimmed.startsWith('# ')) { flushList(); elements.push(React.createElement('p', { key: 'h1-' + i, style: { color: 'white', fontSize: 15, fontWeight: 700, margin: '10px 0 4px' } }, inlineMd(trimmed.slice(2)))); continue; }
+    if (trimmed.match(/^[-*]\s/)) { listItems.push(React.createElement('li', { key: 'li-' + i, style: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, marginBottom: 2 } }, inlineMd(trimmed.slice(2)))); continue; }
+    if (trimmed.match(/^\d+\.\s/)) { listItems.push(React.createElement('li', { key: 'li-' + i, style: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.6, marginBottom: 2 } }, inlineMd(trimmed.replace(/^\d+\.\s/, '')))); continue; }
+    flushList();
+    elements.push(React.createElement('p', { key: 'p-' + i, style: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 1.7, margin: '2px 0' } }, inlineMd(trimmed)));
+  }
+  flushList();
+  return elements;
+}
+function inlineMd(text) {
+  const parts = [];
+  let remaining = text;
+  let key = 0;
+  while (remaining.length > 0) {
+    const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+    const codeMatch = remaining.match(/`([^`]+)`/);
+    let firstMatch = null;
+    let firstIdx = remaining.length;
+    if (boldMatch && boldMatch.index < firstIdx) { firstMatch = 'bold'; firstIdx = boldMatch.index; }
+    if (codeMatch && codeMatch.index < firstIdx) { firstMatch = 'code'; firstIdx = codeMatch.index; }
+    if (!firstMatch) { parts.push(remaining); break; }
+    if (firstIdx > 0) parts.push(remaining.slice(0, firstIdx));
+    if (firstMatch === 'bold') {
+      parts.push(React.createElement('strong', { key: 'b' + key++, style: { color: 'white', fontWeight: 600 } }, boldMatch[1]));
+      remaining = remaining.slice(firstIdx + boldMatch[0].length);
+    } else {
+      parts.push(React.createElement('code', { key: 'c' + key++, style: { background: 'rgba(124,58,237,0.15)', padding: '1px 5px', borderRadius: 4, fontSize: 12, color: '#a78bfa' } }, codeMatch[1]));
+      remaining = remaining.slice(firstIdx + codeMatch[0].length);
+    }
+  }
+  return parts;
+}
+
 // ⬡B:audra.gmg_university.M17:FIX:error_boundary:20260404⬡
 class GMGErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
@@ -360,7 +407,7 @@ function LessonSidebar({ show, onClose, completedDays, onSelectBlock, onReset, c
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
           {blocks.map(block => (
             <div key={block.block}>
-              <div style={{ padding: '12px 16px 6px', color: block.block === 0 ? '#fbbf24' : '#a78bfa', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+              <div style={{ padding: '12px 16px 6px', color: (completedDays || []).filter(k => k.startsWith('b' + block.block + '-')).length >= (block.days || []).length && (block.days || []).length > 1 ? '#10b981' : block.block === 0 ? '#fbbf24' : '#a78bfa', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase' }}>
                 {block.block === 0 ? 'Block 0' : 'Block ' + block.block}{block.track && block.track !== 'UNASSIGNED' ? ' · ' + block.track.replace(/_/g, ' ') : ''} — {block.name}
               </div>
               {(block.days || []).map((title, i) => {
@@ -531,7 +578,9 @@ function AppInner() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try { const saved = localStorage.getItem('gmgu-messages'); return saved ? JSON.parse(saved) : []; } catch { return []; }
+  });
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -540,6 +589,7 @@ function AppInner() {
   const [currentLesson, setCurrentLesson] = useState(null);
   const [initDone, setInitDone] = useState(false);
   const [deckContent, setDeckContent] = useState(null);
+  const [lessonDone, setLessonDone] = useState(null); // {title, block, day, next}
   const [curriculum, setCurriculum] = useState(null);
   const [adminView, setAdminView] = useState(false);
   const [adminStudents, setAdminStudents] = useState([]);
@@ -672,6 +722,13 @@ function AppInner() {
     return () => unsub();
   }, []);
 
+  // ━━━ PERSIST MESSAGES ━━━
+  useEffect(() => {
+    if (messages.length > 0) {
+      try { localStorage.setItem('gmgu-messages', JSON.stringify(messages.slice(-50))); } catch {}
+    }
+  }, [messages]);
+
   // ━━━ AUTO-SCROLL ━━━
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streaming]);
 
@@ -772,8 +829,8 @@ function AppInner() {
   async function streamFromAIR(userMsg, isAutoInit = false) {
     if (streaming) return;
     setStreaming(true);
-    if (!isAutoInit) setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setMessages(prev => [...prev, { role: 'aba', text: '', streaming: true }]);
+    if (!isAutoInit) setMessages(prev => [...prev, { role: 'user', text: userMsg, time: Date.now() }]);
+    setMessages(prev => [...prev, { role: 'aba', text: '', streaming: true, time: Date.now() }]);
 
     let accumulated = '';
     let sentenceBuf = '';
@@ -870,6 +927,7 @@ function AppInner() {
 
   // ━━━ COMPLETE ━━━
   async function markComplete() {
+    const doneInfo = currentLesson ? { title: currentLesson.title, block: currentLesson.block, day: currentLesson.day } : null;
     if (!currentLesson || !user?.email) return;
     const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
     if (profile?.completedDays?.includes(key)) return;
@@ -1116,9 +1174,12 @@ function AppInner() {
       {/* MESSAGES AREA */}
       {!adminView && <div style={{ flex: 1, overflowY: 'auto', paddingTop: 12, paddingBottom: 100, position: 'relative', zIndex: 1 }}>
         {messages.length === 0 && !streaming && (
-          <div style={{ textAlign: 'center', padding: '60px 32px', color: 'rgba(255,255,255,0.12)' }}>
-            <div style={{ marginBottom: 12, opacity: 0.5 }}><ABAConsciousness size={48}/></div>
-            <p style={{ fontSize: 13, fontWeight: 400 }}>Starting your session...</p>
+          <div style={{ textAlign: 'center', padding: '48px 28px', color: 'rgba(255,255,255,0.15)' }}>
+            <div style={{ marginBottom: 14, opacity: 0.6 }}><ABAConsciousness size={56}/></div>
+            <p style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.3)', marginBottom: 6 }}>Starting your session...</p>
+            {curriculum && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)', maxWidth: 280, margin: '0 auto', lineHeight: 1.5 }}>
+              {curriculum.blocks?.length || 0} blocks · {curriculum.totalDays || 0} days · {(profile?.completedDays || []).length} completed
+            </p>}
           </div>
         )}
 
@@ -1229,6 +1290,21 @@ function AppInner() {
         onReset={resetProgress}
         currentLesson={currentLesson}
       />
+      {/* Lesson Complete Card */}
+      {lessonDone && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setLessonDone(null)}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'rgba(15,15,20,0.95)', backdropFilter: 'blur(24px)', borderRadius: 20, border: '1px solid rgba(16,185,129,0.2)', padding: '32px 28px', textAlign: 'center', maxWidth: 340, width: '90%', animation: 'slideUp 0.3s ease-out' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+          <h3 style={{ color: 'white', fontSize: 18, fontWeight: 600, margin: '0 0 4px' }}>Lesson Complete</h3>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, margin: '0 0 16px' }}>Block {lessonDone.block} · Day {lessonDone.day}</p>
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, margin: '0 0 16px' }}>{lessonDone.title}</p>
+          <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
+            <div style={{ height: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)', borderRadius: 3, width: (lessonDone.total / Math.max(lessonDone.of, 1) * 100) + '%', transition: 'width 0.5s' }}/>
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, marginBottom: 20 }}>{lessonDone.total} of {lessonDone.of} lessons completed</p>
+          {lessonDone.next ? <button onClick={() => { selectBlockLesson(lessonDone.next.block, lessonDone.next.day, lessonDone.next.title, lessonDone.next.blockName); setLessonDone(null); }} style={{ padding: '12px 28px', borderRadius: 12, border: 'none', background: 'rgba(124,58,237,0.25)', color: '#a78bfa', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>Next: {lessonDone.next.title}</button>
+          : <p style={{ color: '#10b981', fontSize: 14, fontWeight: 600 }}>All lessons complete!</p>}
+        </div>
+      </div>}
       <DeckPanel deck={deckContent} onClose={() => setDeckContent(null)}/>
     </div>
   );
