@@ -939,7 +939,7 @@ function AppInner() {
       if (r.ok) {
         const updated = await r.json();
         setProfile(p => ({ ...p, ...updated }));
-        setCurrentLesson(getNextLesson(updated.completedDays || []));
+        const nextL = getNextLesson(updated.completedDays || []); setCurrentLesson(nextL); if (doneInfo) setLessonDone({ ...doneInfo, next: nextL, total: (updated.completedDays||[]).length, of: curriculum?.totalDays || 75 });
       }
     } catch (e) { console.error('[GMG-U] Complete error:', e.message); }
   }
