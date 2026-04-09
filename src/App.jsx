@@ -573,6 +573,126 @@ function DeckPanel({ deck, onClose }) {
   );
 }
 
+/* ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡ */
+/* ElevenLabs push-to-talk voice orb for GMG-U voice conversation mode */
+function VoiceConversationOrb({ userId, onSwitchToChat }) {
+  const [orbState, setOrbState] = useState('idle');
+  const [statusText, setStatusText] = useState('Tap to start voice conversation');
+  const [transcript, setTranscript] = useState([]);
+  const [errorMsg, setErrorMsg] = useState('');
+  const thinkTimerRef = useRef(null);
+  const currentMsgRef = useRef('');
+
+  let conversation = null;
+  try {
+    const { useConversation } = require('@elevenlabs/react');
+    conversation = useConversation({
+      onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); },
+      onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); },
+      onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); },
+      onMessage: ({ message, source }) => {
+        if (source === 'user') {
+          if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+          setOrbState('thinking'); setStatusText('ABA is thinking...');
+        }
+        if (source === 'ai') { currentMsgRef.current += message; }
+      },
+      onModeChange: ({ mode }) => {
+        clearTimeout(thinkTimerRef.current);
+        if (mode === 'speaking') { setOrbState('speaking'); setStatusText('ABA is speaking...'); }
+        else {
+          if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+          thinkTimerRef.current = setTimeout(() => { setOrbState('listening'); setStatusText('Your turn — share your thoughts'); }, 200);
+        }
+      }
+    });
+  } catch (e) {
+    console.log('[VOICE] ElevenLabs SDK not available:', e.message);
+  }
+
+  const handleTap = useCallback(async () => {
+    if (!conversation) return;
+    if (orbState === 'error') { setOrbState('idle'); setStatusText('Tap to start voice conversation'); setErrorMsg(''); return; }
+    if (conversation.status === 'connected') { await conversation.endSession(); return; }
+    try {
+      setOrbState('connecting'); setStatusText('Requesting microphone...');
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      setStatusText('Connecting to ABA...');
+      try {
+        await fetch('https://abacia-services.onrender.com/vara/preload', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, conversation_id: 'gmgu_voice_' + Date.now(), mode: 'gmg_university',
+            instructions: 'You are ABA conducting a GMG University lesson. This user is a founder in INTERVIEW_MODE. Interview them about nonprofit concepts and capture their real-world perspective. Be conversational, warm, push for depth. Ask follow-up questions.'
+          })
+        });
+      } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
+      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa', connectionType: 'webrtc' });
+    } catch (err) {
+      setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
+      setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
+    }
+  }, [conversation, orbState, userId]);
+
+  const colors = { idle: '139,92,246', connecting: '245,158,11', listening: '139,92,246', thinking: '245,158,11', speaking: '16,185,129', error: '239,68,68' };
+  const c = colors[orbState] || colors.idle;
+  const isActive = orbState !== 'idle' && orbState !== 'error';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 14px', gap: 16 }}>
+      {/* Pulsing rings */}
+      {isActive && <>
+        <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', border: `1px solid rgba(${c},.12)`, animation: 'pulse 2s ease-out infinite', opacity: .5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', border: `1px solid rgba(${c},.08)`, animation: 'pulse 2s ease-out .5s infinite', opacity: .3, pointerEvents: 'none' }} />
+      </>}
+
+      {/* Orb */}
+      <button onClick={handleTap} style={{
+        width: 120, height: 120, borderRadius: '50%', border: 'none', cursor: 'pointer',
+        background: `radial-gradient(circle at 35% 35%, rgba(${c},.45), rgba(${c},.15))`,
+        boxShadow: `0 0 ${isActive ? 50 : 20}px rgba(${c},.35)`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+        color: 'white', transition: 'all .3s', position: 'relative', zIndex: 2
+      }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={28} height={28}><rect x={9} y={2} width={6} height={11} rx={3}/><path d="M5 11a7 7 0 0014 0"/><line x1={12} y1={18} x2={12} y2={22}/></svg>
+        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.2, opacity: .8 }}>
+          {orbState === 'idle' ? 'TAP TO START' : orbState === 'connecting' ? 'CONNECTING' : orbState === 'listening' ? 'LISTENING' : orbState === 'thinking' ? 'THINKING' : orbState === 'speaking' ? 'SPEAKING' : 'ERROR'}
+        </span>
+      </button>
+      <p style={{ color: 'rgba(255,255,255,.45)', fontSize: 11, textAlign: 'center' }}>{statusText}</p>
+      {errorMsg && <p style={{ color: 'rgba(239,68,68,.7)', fontSize: 10, textAlign: 'center' }}>{errorMsg}</p>}
+
+      {/* Voice transcript */}
+      {transcript.length > 0 && (
+        <div style={{ width: '100%', maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {transcript.map((t, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: t.from === 'aba' ? 'flex-start' : 'flex-end' }}>
+              <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: t.from === 'aba' ? '12px 12px 12px 4px' : '12px 12px 4px 12px',
+                background: t.from === 'aba' ? 'rgba(139,92,246,.12)' : 'rgba(255,255,255,.08)',
+                color: 'rgba(255,255,255,.8)', fontSize: 12, lineHeight: 1.4 }}>
+                {t.text}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Switch to chat + end conversation */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+        <button onClick={onSwitchToChat} style={{
+          padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)',
+          background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 11
+        }}>Switch to Chat</button>
+        {conversation?.status === 'connected' && (
+          <button onClick={async () => { await conversation.endSession(); }} style={{
+            padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)',
+            background: 'rgba(239,68,68,.08)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11
+          }}>End Voice</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ━━━ MAIN APP ━━━ */
 function AppInner() {
   const [user, setUser] = useState(null);
@@ -591,6 +711,7 @@ function AppInner() {
   const [deckContent, setDeckContent] = useState(null);
   const [lessonDone, setLessonDone] = useState(null); // {title, block, day, next}
   const [curriculum, setCurriculum] = useState(null);
+  const [interactionMode, setInteractionMode] = useState(null); // null = show selector, 'chat' = iMessage, 'voice' = ElevenLabs orb
   const [adminView, setAdminView] = useState(false);
   const [adminStudents, setAdminStudents] = useState([]);
   const [adminInterviews, setAdminInterviews] = useState([]);
@@ -1222,10 +1343,42 @@ function AppInner() {
 
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
         <div ref={endRef}/>
+
+        {/* ⬡B:GMGU.standalone:FEAT:voice_chat_mode_selector:20260409⬡ */}
+        {/* Mode selector — shown after ABA's first message finishes streaming */}
+        {!interactionMode && messages.length > 0 && !streaming && messages[messages.length-1]?.role === 'aba' && (
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', padding: '20px 14px 10px' }}>
+            <button onClick={() => setInteractionMode('voice')} style={{
+              flex: 1, maxWidth: 200, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(139,92,246,.3)', background: 'rgba(139,92,246,.12)',
+              color: '#a78bfa', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 6, transition: 'all .2s'
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={24} height={24}><rect x={9} y={2} width={6} height={11} rx={3}/><path d="M5 11a7 7 0 0014 0"/><line x1={12} y1={18} x2={12} y2={22}/></svg>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Continue with Voice</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Like a phone call</span>
+            </button>
+            <button onClick={() => setInteractionMode('chat')} style={{
+              flex: 1, maxWidth: 200, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
+              color: 'rgba(255,255,255,.7)', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 6, transition: 'all .2s'
+            }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={24} height={24}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Continue Chatting</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Type your answers</span>
+            </button>
+          </div>
+        )}
+
+        {/* Voice conversation mode — ElevenLabs push-to-talk orb */}
+        {interactionMode === 'voice' && (
+          <VoiceConversationOrb userId={user?.email} onSwitchToChat={() => setInteractionMode('chat')} />
+        )}
       </div>}
 
-      {/* INPUT BAR — iMessage style */}
-      {!adminView && <div style={{
+      {/* INPUT BAR — only show in chat mode or before mode selected */}
+      {!adminView && interactionMode !== 'voice' && <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 20,
         background: 'rgba(10,10,15,0.8)', backdropFilter: 'blur(24px)',
         borderTop: '1px solid rgba(255,255,255,0.06)',
