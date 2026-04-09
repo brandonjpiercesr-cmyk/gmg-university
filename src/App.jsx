@@ -737,7 +737,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
           background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 11
         }}>Switch to Chat</button>
         {conversation?.status === 'connected' && (
-          <button onClick={async () => { await conversation.endSession(); }} style={{
+          <button onClick={async () => { await conversation.endSession(); onSwitchToChat(transcript); }} style={{
             padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)',
             background: 'rgba(239,68,68,.08)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11
           }}>End Voice</button>
