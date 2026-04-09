@@ -985,7 +985,14 @@ function AppInner() {
                 if (last?.role === 'aba') copy[copy.length - 1] = { ...last, text: accumulated };
                 return copy;
               });
-              if (sentenceBuf.match(/[.!?]\s*$/)) { speakText(sentenceBuf.trim()); sentenceBuf = ''; }
+              // ⬡B:GMGU.standalone:FIX:faster_tts_streaming:20260409⬡
+              // Speak earlier: first chunk fires on comma/period after 40+ chars
+              // Subsequent chunks fire on sentence boundaries (.!?)
+              const shouldSpeak = sentenceBuf.length > 40 && (
+                sentenceBuf.match(/[.!?]\s*$/) || 
+                (sentenceBuf.length > 80 && sentenceBuf.match(/[,;:]\s*$/))
+              );
+              if (shouldSpeak) { speakText(sentenceBuf.trim()); sentenceBuf = ''; }
             } else if (data.type === 'done') {
               const final = data.fullResponse || accumulated;
               // ⬡B:gmg_university.deck:DETECT:extract_deck_tags:20260403⬡
