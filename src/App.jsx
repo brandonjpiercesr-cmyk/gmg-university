@@ -593,7 +593,7 @@ function DeckPanel({ deck, onClose }) {
 
 /* ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡ */
 /* ElevenLabs push-to-talk voice orb for GMG-U voice conversation mode */
-function VoiceConversationOrb({ userId, onSwitchToChat }) {
+function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortType }) {
   const [orbState, setOrbState] = useState('idle');
   const [statusText, setStatusText] = useState('Tap to start voice conversation');
   const [transcript, setTranscript] = useState([]);
@@ -654,8 +654,15 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
             conversation_id: convId,
             appContext: {
               mode: 'gmg-university',
-              instructions: 'You are ABA conducting a GMG University lesson. This user is a FOUNDER in INTERVIEW_MODE. You are NOT teaching them — you are INTERVIEWING them. Their answers become the curriculum that other students learn from. You are on Block 1, Day 1: What Is a Nonprofit. Ask them real-world questions about nonprofit management. Push for depth, specifics, and stories from their actual experience. When they give an answer, summarize it back to them and ask a follow-up. Save their responses to brain using save_memory. The lesson is complete when you have captured at least 2 substantive answers with follow-ups.',
-              recentChat: recentChat || 'No prior chat — starting fresh.'
+              instructions: 'You are ABA conducting a GMG University lesson. ' +
+                (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
+                  ? 'This user is a FOUNDER in INTERVIEW_MODE. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
+                  : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.') +
+                (currentLesson 
+                  ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
+                  : ' Start with the next lesson in the curriculum.') +
+                ' Ask real-world questions. Push for depth, specifics, and stories from their actual experience. When they give an answer, summarize it back and ask a follow-up. The lesson is complete when you have captured at least 2 substantive answers with follow-ups. Keep responses to 2-3 sentences to stay conversational. Do NOT use tools like save_memory or search_brain during the voice call unless the user explicitly asks you to search or save something — tool calls cause delays that make you go silent. Just have the conversation naturally, the content gets saved automatically after the call ends.',
+              recentChat: (recentChat || 'No prior chat.').substring(0, 600)
             }
           })
         });
@@ -1489,7 +1496,7 @@ function AppInner() {
 
         {/* Voice conversation mode — ElevenLabs push-to-talk orb */}
         {interactionMode === 'voice' && (
-          <VoiceConversationOrb userId={user?.email} onSwitchToChat={(voiceTranscript) => {
+          <VoiceConversationOrb userId={user?.email} currentLesson={currentLesson} cohortType={profile?.cohort_type} onSwitchToChat={(voiceTranscript) => {
             // ⬡B:GMGU.dev:FEAT:voice_to_chat_sync:20260409⬡
             if (voiceTranscript && voiceTranscript.length > 0) {
               const voiceMsgs = voiceTranscript.map(t => ({
