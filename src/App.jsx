@@ -614,11 +614,25 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
       try {
+        // ⬡B:GMGU.standalone:FIX:voice_context_sync:20260409⬡
+        // Write pending instruction so VARA knows this is GMG-U, not a generic call
+        // Also include the recent chat messages so the voice conversation picks up where chat left off
+        const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
+          (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
+        ).join('\n');
+        
+        await fetch('https://abacia-services.onrender.com/api/air/process', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: 'Write a vara_pending_instruction for an incoming GMG University voice lesson. The user is ' + (userId || 'a founder') + ' in INTERVIEW_MODE. They are on Block 1 Day 1: What Is a Nonprofit. The voice conversation should pick up where the text chat left off. Here is the recent chat context:\n' + recentChat + '\n\nWrite this instruction to brain with memory_type=vara_pending_instruction and tags=[unread]. The instruction should tell VARA to continue the GMG University founder interview, ask the next question, and capture the founders real-world perspective. Do NOT start from scratch — pick up mid-conversation.',
+            user_id: userId || 'brandon',
+            channel: 'gmg-university'
+          })
+        });
+
         await fetch('https://abacia-services.onrender.com/vara/preload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, conversation_id: 'gmgu_voice_' + Date.now(), mode: 'gmg_university',
-            instructions: 'You are ABA conducting a GMG University lesson. This user is a founder in INTERVIEW_MODE. Interview them about nonprofit concepts and capture their real-world perspective. Be conversational, warm, push for depth. Ask follow-up questions.'
-          })
+          body: JSON.stringify({ userId, conversation_id: 'gmgu_voice_' + Date.now() })
         });
       } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
       await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
@@ -842,6 +856,7 @@ function AppInner() {
   useEffect(() => {
     if (messages.length > 0) {
       try { localStorage.setItem('gmgu-messages', JSON.stringify(messages.slice(-50))); } catch {}
+      window.__gmgu_messages = messages; // ⬡B:GMGU:voice_context_sync⬡ Expose to voice orb
     }
   }, [messages]);
 
