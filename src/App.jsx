@@ -621,7 +621,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
           })
         });
       } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
-      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa', connectionType: 'webrtc' });
+      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
       setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
