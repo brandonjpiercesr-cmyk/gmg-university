@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡
-import { useConversation } from '@elevenlabs/react';
+import { useConversation, ConversationProvider } from '@elevenlabs/react';
 // Firestore removed — progress lives in Supabase brain via backend API
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
@@ -1337,6 +1337,27 @@ function AppInner() {
                   {msg.role === 'aba' && !msg.streaming ? renderMd((msg.text || '').replace(/\[LESSON_STARTED\]/g,'').replace(/\[LESSON_COMPLETE\]/g,'').trim()) : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14.5, lineHeight: 1.65, whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</p>}
                   {msg.streaming && <span style={{ display: 'inline-block', width: 2, height: 16, background: '#a78bfa', marginLeft: 2, animation: 'pulse 0.8s infinite', verticalAlign: 'text-bottom' }}/>}
                   {msg.time && !msg.streaming && <p style={{ color: 'rgba(255,255,255,0.08)', fontSize: 9, marginTop: 4, textAlign: msg.role === 'aba' ? 'left' : 'right' }}>{new Date(msg.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
+                  {/* ⬡B:GMGU.standalone:FEAT:read_aloud_and_voice_switch:20260409⬡ */}
+                  {isAba && !msg.streaming && interactionMode === 'chat' && i === messages.length - 1 && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                      <button onClick={() => speakText((msg.text || '').replace(/\[.*?\]/g,'').replace(/\*\*/g,'').trim())} style={{
+                        padding: '5px 10px', borderRadius: 8, border: '1px solid rgba(139,92,246,.2)',
+                        background: 'rgba(139,92,246,.08)', color: 'rgba(139,92,246,.7)', cursor: 'pointer',
+                        fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4
+                      }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={12} height={12}><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+                        Read Aloud
+                      </button>
+                      <button onClick={() => setInteractionMode('voice')} style={{
+                        padding: '5px 10px', borderRadius: 8, border: '1px solid rgba(6,182,212,.2)',
+                        background: 'rgba(6,182,212,.08)', color: 'rgba(6,182,212,.7)', cursor: 'pointer',
+                        fontSize: 10, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4
+                      }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={12} height={12}><rect x={9} y={2} width={6} height={11} rx={3}/><path d="M5 11a7 7 0 0014 0"/><line x1={12} y1={18} x2={12} y2={22}/></svg>
+                        Switch to Voice
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1469,4 +1490,4 @@ function AppInner() {
   );
 }
 
-export default function App() { return <GMGErrorBoundary><AppInner/></GMGErrorBoundary>; }
+export default function App() { return <ConversationProvider><GMGErrorBoundary><AppInner/></GMGErrorBoundary></ConversationProvider>; }
