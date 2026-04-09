@@ -944,7 +944,17 @@ function AppInner() {
     } catch (e) { console.error('[GMG-U] Complete error:', e.message); }
   }
 
-  // selectLesson removed — replaced by selectBlockLesson (block-aware)
+  // ⬡B:GMGU.standalone:FIX:selectBlockLesson_missing:20260408⬡
+  // selectBlockLesson — replaces old selectLesson with block-aware version
+  const selectBlockLesson = (blockNum, dayNum, title, blockName) => {
+    setCurrentLesson({ block: blockNum, day: dayNum, title, blockName });
+    setMessages([]);
+    setInitDone(false);
+    setTimeout(() => {
+      const firstName = (user?.name || user?.email || 'there').split(' ')[0];
+      streamFromAIR(firstName + ' here. I want to do Block ' + blockNum + ' Day ' + dayNum + ': "' + title + '". Check my cohort_type and proceed accordingly.', true);
+    }, 100);
+  };
 
   // ━━━ RESET ━━━
   async function resetProgress() {
