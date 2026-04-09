@@ -687,7 +687,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
 
       {/* Switch to chat + end conversation */}
       <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-        <button onClick={onSwitchToChat} style={{
+        <button onClick={() => onSwitchToChat(transcript)} style={{
           padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)',
           background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 11
         }}>Switch to Chat</button>
@@ -1411,7 +1411,23 @@ function AppInner() {
 
         {/* Voice conversation mode — ElevenLabs push-to-talk orb */}
         {interactionMode === 'voice' && (
-          <VoiceConversationOrb userId={user?.email} onSwitchToChat={() => setInteractionMode('chat')} />
+          <VoiceConversationOrb userId={user?.email} onSwitchToChat={(voiceTranscript) => {
+            // ⬡B:GMGU.dev:FEAT:voice_to_chat_sync:20260409⬡
+            // When switching back from voice, inject voice transcript into chat
+            if (voiceTranscript && voiceTranscript.length > 0) {
+              const voiceMsgs = voiceTranscript.map(t => ({
+                role: t.from === 'aba' ? 'aba' : 'user',
+                text: t.text,
+                time: Date.now(),
+                source: 'voice'
+              }));
+              setMessages(prev => [...prev, 
+                { role: 'aba', text: '(Voice conversation captured)', time: Date.now(), source: 'system' },
+                ...voiceMsgs
+              ]);
+            }
+            setInteractionMode('chat');
+          }} />
         )}
       </div>}
 
