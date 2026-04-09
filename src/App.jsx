@@ -1,8 +1,10 @@
 // GMG UNIVERSITY v9.0 — iMessage Chat Style
 // ⬡B:gmg_university.ui_redesign:BUILD:chat_style_v9:20260403⬡
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
+// ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡
+import { useConversation } from '@elevenlabs/react';
 // Firestore removed — progress lives in Supabase brain via backend API
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
@@ -583,35 +585,28 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
   const thinkTimerRef = useRef(null);
   const currentMsgRef = useRef('');
 
-  let conversation = null;
-  try {
-    const { useConversation } = require('@elevenlabs/react');
-    conversation = useConversation({
-      onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); },
-      onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); },
-      onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); },
-      onMessage: ({ message, source }) => {
-        if (source === 'user') {
-          if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
-          setOrbState('thinking'); setStatusText('ABA is thinking...');
-        }
-        if (source === 'ai') { currentMsgRef.current += message; }
-      },
-      onModeChange: ({ mode }) => {
-        clearTimeout(thinkTimerRef.current);
-        if (mode === 'speaking') { setOrbState('speaking'); setStatusText('ABA is speaking...'); }
-        else {
-          if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
-          thinkTimerRef.current = setTimeout(() => { setOrbState('listening'); setStatusText('Your turn — share your thoughts'); }, 200);
-        }
+  const conversation = useConversation({
+    onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); },
+    onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); },
+    onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); },
+    onMessage: ({ message, source }) => {
+      if (source === 'user') {
+        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+        setOrbState('thinking'); setStatusText('ABA is thinking...');
       }
-    });
-  } catch (e) {
-    console.log('[VOICE] ElevenLabs SDK not available:', e.message);
-  }
+      if (source === 'ai') { currentMsgRef.current += message; }
+    },
+    onModeChange: ({ mode }) => {
+      clearTimeout(thinkTimerRef.current);
+      if (mode === 'speaking') { setOrbState('speaking'); setStatusText('ABA is speaking...'); }
+      else {
+        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+        thinkTimerRef.current = setTimeout(() => { setOrbState('listening'); setStatusText('Your turn — share your thoughts'); }, 200);
+      }
+    }
+  });
 
   const handleTap = useCallback(async () => {
-    if (!conversation) return;
     if (orbState === 'error') { setOrbState('idle'); setStatusText('Tap to start voice conversation'); setErrorMsg(''); return; }
     if (conversation.status === 'connected') { await conversation.endSession(); return; }
     try {
