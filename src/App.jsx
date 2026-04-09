@@ -977,20 +977,30 @@ function AppInner() {
   }
 
   // ━━━ TTS WITH QUEUE ━━━
+  // ⬡B:GMGU.dev:FIX:tts_long_text_and_recovery:20260409⬡
   async function speakText(text) {
     if (!voiceOn || !text?.trim()) return;
-    try {
-      const r = await fetch(TTS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text.substring(0, 500) })
-      });
-      if (r.ok) {
-        const url = URL.createObjectURL(await r.blob());
-        audioQueue.current.push(url);
-        playNext();
-      }
-    } catch (e) { console.error('[GMG-U]', e.message); }
+    // Split long text into sentence-sized chunks for TTS
+    // ElevenLabs handles up to ~500 chars well, longer texts may fail
+    const sentences = text.match(/[^.!?]+[.!?]+\s*/g) || [text];
+    for (const sentence of sentences) {
+      const chunk = sentence.trim();
+      if (!chunk || chunk.length < 3) continue;
+      try {
+        const r = await fetch(TTS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chunk.substring(0, 500) })
+        });
+        if (r.ok) {
+          const url = URL.createObjectURL(await r.blob());
+          audioQueue.current.push(url);
+          playNext();
+        } else {
+          console.warn('[TTS] Failed for chunk, skipping:', r.status);
+        }
+      } catch (e) { console.error('[TTS]', e.message); }
+    }
   }
 
   function playNext() {
@@ -1000,8 +1010,11 @@ function AppInner() {
     if (audioRef.current) {
       audioRef.current.src = url;
       audioRef.current.onended = () => { isPlaying.current = false; URL.revokeObjectURL(url); playNext(); };
-      audioRef.current.onerror = () => { isPlaying.current = false; URL.revokeObjectURL(url); playNext(); };
-      audioRef.current.play().catch(() => { isPlaying.current = false; playNext(); });
+      audioRef.current.onerror = () => { isPlaying.current = false; URL.revokeObjectURL(url); console.warn('[TTS] Audio playback error, skipping to next'); playNext(); };
+      audioRef.current.play().catch(() => { isPlaying.current = false; URL.revokeObjectURL(url); playNext(); });
+    } else {
+      isPlaying.current = false;
+      playNext();
     }
   }
 
