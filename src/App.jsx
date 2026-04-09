@@ -674,7 +674,7 @@ function AppInner() {
     setCurrentLesson({ block: b, day: d, title, blockName: 'Block ' + b });
     let msg = 'TEST MODE SIMULATION. I am simulating a ' + c + ' student';
     if (c === 'FOUNDING_LINE') msg += ' on the ' + t + ' track';
-    msg += '. Block ' + b + ' Day ' + d + ': "' + title + '". Treat me as this student type and teach/assess accordingly. My cohort_type is ' + c + '.';
+    msg += '. Block ' + b + ' Day ' + d + ': "' + title + '". Proceed with my lesson.';
     if (c === 'INTERVIEW_MODE') msg += ' Interview me on this topic — share your research perspective first, then ask for my take.';
     streamFromAIR(msg, true);
   }
@@ -757,7 +757,7 @@ function AppInner() {
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
       let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
       if (next) {
-        msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' lessons. Check my cohort_type and proceed accordingly.';
+        msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' lessons. Proceed with my lesson.';
         setCurrentLesson(next);
       } else {
         msg += ' I have completed all ' + (curriculum?.totalDays || '?') + ' lessons.';
@@ -953,7 +953,7 @@ function AppInner() {
     setInitDone(false);
     setTimeout(() => {
       const firstName = (user?.name || user?.email || 'there').split(' ')[0];
-      streamFromAIR(firstName + ' here. I want to do Block ' + blockNum + ' Day ' + dayNum + ': "' + title + '". Check my cohort_type and proceed accordingly.', true);
+      streamFromAIR(firstName + ' here. I want to do Block ' + blockNum + ' Day ' + dayNum + ': "' + title + '". Proceed with my lesson.', true);
     }, 100);
   };
 
