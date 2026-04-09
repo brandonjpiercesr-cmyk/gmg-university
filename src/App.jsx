@@ -582,25 +582,34 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
   const [statusText, setStatusText] = useState('Tap to start voice conversation');
   const [transcript, setTranscript] = useState([]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [liveCaption, setLiveCaption] = useState(''); // ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡
+  const [lastUserSaid, setLastUserSaid] = useState('');
   const thinkTimerRef = useRef(null);
   const currentMsgRef = useRef('');
+  const captionRef = useRef(null);
 
   const conversation = useConversation({
-    onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); },
-    onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); },
+    onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); setLiveCaption(''); },
+    onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); setLiveCaption(''); },
     onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); },
     onMessage: ({ message, source }) => {
       if (source === 'user') {
         if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+        setLastUserSaid(message);
+        setTranscript(p => [...p, { from: 'user', text: message }]);
+        setLiveCaption('');
         setOrbState('thinking'); setStatusText('ABA is thinking...');
       }
-      if (source === 'ai') { currentMsgRef.current += message; }
+      if (source === 'ai') { 
+        currentMsgRef.current += message;
+        setLiveCaption(currentMsgRef.current); // Live caption updates as ABA speaks
+      }
     },
     onModeChange: ({ mode }) => {
       clearTimeout(thinkTimerRef.current);
       if (mode === 'speaking') { setOrbState('speaking'); setStatusText('ABA is speaking...'); }
       else {
-        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; setLiveCaption(''); }
         thinkTimerRef.current = setTimeout(() => { setOrbState('listening'); setStatusText('Your turn — share your thoughts'); }, 200);
       }
     }
@@ -669,6 +678,26 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
       </button>
       <p style={{ color: 'rgba(255,255,255,.45)', fontSize: 11, textAlign: 'center' }}>{statusText}</p>
       {errorMsg && <p style={{ color: 'rgba(239,68,68,.7)', fontSize: 10, textAlign: 'center' }}>{errorMsg}</p>}
+
+      {/* ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡ Live captions — like subtitles */}
+      {(liveCaption || lastUserSaid) && orbState !== 'idle' && (
+        <div ref={captionRef} style={{
+          width: '100%', maxHeight: 120, overflowY: 'auto',
+          background: 'rgba(0,0,0,.4)', borderRadius: 12, padding: '10px 14px',
+          backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.06)'
+        }}>
+          {lastUserSaid && orbState !== 'listening' && (
+            <p style={{ color: 'rgba(139,92,246,.6)', fontSize: 11, margin: '0 0 6px', fontStyle: 'italic' }}>
+              You: {lastUserSaid.length > 120 ? lastUserSaid.substring(lastUserSaid.length - 120) : lastUserSaid}
+            </p>
+          )}
+          {liveCaption && (
+            <p style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+              {liveCaption.length > 200 ? '...' + liveCaption.substring(liveCaption.length - 200) : liveCaption}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Voice transcript */}
       {transcript.length > 0 && (
