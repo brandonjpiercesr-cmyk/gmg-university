@@ -379,12 +379,24 @@ function CinematicBG() {
 
 /* ━━━ LESSON SIDEBAR ━━━ */
 // ⬡B:audra.gmg_university.restructure:FIX:block_aware_sidebar:20260407⬡
-function LessonSidebar({ show, onClose, completedDays, onSelectBlock, onReset, currentLesson, curriculum }) {
+function LessonSidebar({ show, onClose, completedDays, onSelectBlock, onReset, currentLesson, curriculum, cohortType }) {
   if (!show) return null;
   const completed = completedDays || [];
   const blocks = curriculum?.blocks || [];
   const totalAll = blocks.reduce((s, b) => s + (b.days || []).length, 0);
   const totalDone = completed.length;
+  const isFounder = cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE';
+  
+  // ⬡B:GMGU.dev:FEAT:lesson_locking:20260409⬡
+  // Find what the next unlocked lesson is — students can only go up to this
+  let nextUnlocked = null;
+  for (const block of blocks) {
+    for (let i = 0; i < (block.days || []).length; i++) {
+      const key = 'b' + block.block + '-d' + (i + 1);
+      if (!completed.includes(key)) { nextUnlocked = key; break; }
+    }
+    if (nextUnlocked) break;
+  }
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 90 }}/>
@@ -417,21 +429,25 @@ function LessonSidebar({ show, onClose, completedDays, onSelectBlock, onReset, c
                 const key = 'b' + block.block + '-d' + dayNum;
                 const done = completed.includes(key);
                 const isCurrent = currentLesson?.block === block.block && currentLesson?.day === dayNum;
+                // ⬡B:GMGU.dev:FEAT:lesson_locking:20260409⬡
+                const isNextUp = key === nextUnlocked;
+                const isLocked = !isFounder && !done && !isNextUp;
                 return (
-                  <button key={key} onClick={() => { onSelectBlock(block.block, dayNum, title, block.name); onClose(); }} style={{
+                  <button key={key} onClick={() => { if (!isLocked) { onSelectBlock(block.block, dayNum, title, block.name); onClose(); } }} style={{
                     width: '100%', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10,
                     background: isCurrent ? 'rgba(124,58,237,0.15)' : 'transparent',
-                    border: 'none', cursor: 'pointer', textAlign: 'left',
-                    borderLeft: isCurrent ? '3px solid #7c3aed' : '3px solid transparent'
+                    border: 'none', cursor: isLocked ? 'not-allowed' : 'pointer', textAlign: 'left',
+                    borderLeft: isCurrent ? '3px solid #7c3aed' : '3px solid transparent',
+                    opacity: isLocked ? 0.35 : 1
                   }}>
                     <span style={{
                       width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 10, fontWeight: 600, flexShrink: 0,
-                      background: done ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)',
-                      color: done ? '#10b981' : 'rgba(255,255,255,0.3)',
+                      background: done ? 'rgba(16,185,129,0.2)' : isLocked ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)',
+                      color: done ? '#10b981' : isLocked ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.3)',
                       border: '1px solid ' + (done ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)')
-                    }}>{done ? '✓' : dayNum}</span>
-                    <span style={{ color: done ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.3 }}>{title}</span>
+                    }}>{done ? '✓' : isLocked ? '🔒' : dayNum}</span>
+                    <span style={{ color: done ? 'rgba(255,255,255,0.5)' : isLocked ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.8)', fontSize: 13, lineHeight: 1.3 }}>{title}</span>
                   </button>
                 );
               })}
@@ -1262,6 +1278,23 @@ function AppInner() {
                 {s.gmg_track !== 'NOT_SET' && <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>{s.gmg_track}</span>}
                 {s.gmg_group !== 'NOT_SET' && <span style={{ padding: '2px 6px', borderRadius: 4, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>{s.gmg_group}</span>}
                 <button onClick={() => resetStudent(s.ham_id)} style={{ marginLeft: 'auto', padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', background: 'transparent', color: '#ef4444', fontSize: 10, cursor: 'pointer' }}>Reset</button>
+                {/* ⬡B:GMGU.dev:FEAT:admin_completion_toggle:20260409⬡ */}
+                <button onClick={async () => {
+                  const dayKey = prompt('Mark day complete (e.g., b1-d1) or remove (e.g., -b1-d1):');
+                  if (!dayKey) return;
+                  const isRemove = dayKey.startsWith('-');
+                  const key = isRemove ? dayKey.slice(1) : dayKey;
+                  let days = [...(s.completedDays || [])];
+                  if (isRemove) { days = days.filter(d => d !== key); }
+                  else if (!days.includes(key)) { days.push(key); }
+                  try {
+                    await fetch(Q + '/api/gmg-university/progress', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: s.email, completedDays: days, cohort_type: s.cohort_type, gmg_track: s.gmg_track })
+                    });
+                    loadAdmin();
+                  } catch (e) { console.error('[ADMIN]', e.message); }
+                }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(139,92,246,0.2)', background: 'transparent', color: '#a78bfa', fontSize: 10, cursor: 'pointer' }}>±Day</button>
               </div>
             </div>
           ))}
@@ -1529,6 +1562,7 @@ function AppInner() {
         onSelectBlock={selectBlockLesson} curriculum={curriculum}
         onReset={resetProgress}
         currentLesson={currentLesson}
+        cohortType={profile?.cohort_type}
       />
       {/* Lesson Complete Card */}
       {lessonDone && <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setLessonDone(null)}>
