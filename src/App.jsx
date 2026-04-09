@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡
-import { useConversation, ConversationProvider } from '@elevenlabs/react';
+import { useConversation } from '@elevenlabs/react';
 // Firestore removed — progress lives in Supabase brain via backend API
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
@@ -1490,4 +1490,4 @@ function AppInner() {
   );
 }
 
-export default function App() { return <ConversationProvider><GMGErrorBoundary><AppInner/></GMGErrorBoundary></ConversationProvider>; }
+export default function App() { return <GMGErrorBoundary><AppInner/></GMGErrorBoundary>; }
