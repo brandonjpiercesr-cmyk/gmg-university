@@ -614,25 +614,25 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
       try {
-        // ⬡B:GMGU.standalone:FIX:voice_context_sync:20260409⬡
-        // Write pending instruction so VARA knows this is GMG-U, not a generic call
-        // Also include the recent chat messages so the voice conversation picks up where chat left off
+        // ⬡B:GMGU.vara:FIX:direct_app_context:20260409⬡
+        // Pass GMG-U context DIRECTLY in the preload call, not through AIR (timing issue).
+        // The preload endpoint injects this into the cached system prompt immediately.
         const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
           (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
         ).join('\n');
         
-        await fetch('https://abacia-services.onrender.com/api/air/process', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: 'Write a vara_pending_instruction for an incoming GMG University voice lesson. The user is ' + (userId || 'a founder') + ' in INTERVIEW_MODE. They are on Block 1 Day 1: What Is a Nonprofit. The voice conversation should pick up where the text chat left off. Here is the recent chat context:\n' + recentChat + '\n\nWrite this instruction to brain with memory_type=vara_pending_instruction and tags=[unread]. The instruction should tell VARA to continue the GMG University founder interview, ask the next question, and capture the founders real-world perspective. Do NOT start from scratch — pick up mid-conversation.',
-            user_id: userId || 'brandon',
-            channel: 'gmg-university'
-          })
-        });
-
+        const convId = 'gmgu_voice_' + Date.now();
         await fetch('https://abacia-services.onrender.com/vara/preload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, conversation_id: 'gmgu_voice_' + Date.now() })
+          body: JSON.stringify({ 
+            userId, 
+            conversation_id: convId,
+            appContext: {
+              mode: 'gmg-university',
+              instructions: 'You are ABA conducting a GMG University lesson. This user is a FOUNDER in INTERVIEW_MODE. You are NOT teaching them — you are INTERVIEWING them. Their answers become the curriculum that other students learn from. You are on Block 1, Day 1: What Is a Nonprofit. Ask them real-world questions about nonprofit management. Push for depth, specifics, and stories from their actual experience. When they give an answer, summarize it back to them and ask a follow-up. Save their responses to brain using save_memory. The lesson is complete when you have captured at least 2 substantive answers with follow-ups.',
+              recentChat: recentChat || 'No prior chat — starting fresh.'
+            }
+          })
         });
       } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
       await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
