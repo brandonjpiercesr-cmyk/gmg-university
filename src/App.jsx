@@ -746,8 +746,9 @@ function AppInner() {
   }, [profile]);
 
   // ━━━ AUTO-INIT: ABA greets on login ━━━
+  // ⬡B:GMGU.standalone:FIX:wait_for_curriculum_before_init:20260408⬡
   useEffect(() => {
-    if (user && profile && !initDone && !streaming) {
+    if (user && profile && curriculum && !initDone && !streaming) {
       setInitDone(true);
       const completed = profile.completedDays || [];
       const next = getNextLesson(completed);
@@ -759,11 +760,11 @@ function AppInner() {
         msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' lessons. Check my cohort_type and proceed accordingly.';
         setCurrentLesson(next);
       } else {
-        msg += ' I have completed all lessons!';
+        msg += ' I have completed all ' + (curriculum?.totalDays || '?') + ' lessons.';
       }
       streamFromAIR(msg, true);
     }
-  }, [user, profile, initDone]);
+  }, [user, profile, curriculum, initDone]);
 
   // ━━━ SPEECH RECOGNITION ━━━
   useEffect(() => {
