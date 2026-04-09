@@ -698,7 +698,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
       {/* ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡ Live captions — like subtitles */}
       {(liveCaption || lastUserSaid) && orbState !== 'idle' && (
         <div ref={captionRef} style={{
-          width: '100%', maxHeight: 120, overflowY: 'auto',
+          width: '100%', maxHeight: 180, overflowY: 'auto',
           background: 'rgba(0,0,0,.4)', borderRadius: 12, padding: '10px 14px',
           backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.06)'
         }}>
@@ -709,7 +709,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat }) {
           )}
           {liveCaption && (
             <p style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-              {liveCaption.length > 200 ? '...' + liveCaption.substring(liveCaption.length - 200) : liveCaption}
+              {liveCaption.length > 500 ? '...' + liveCaption.substring(liveCaption.length - 500) : liveCaption}
             </p>
           )}
         </div>
@@ -753,7 +753,10 @@ function AppInner() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState(() => {
-    try { const saved = localStorage.getItem('gmgu-messages'); return saved ? JSON.parse(saved) : []; } catch { return []; }
+    // ⬡B:GMGU.dev:FIX:stale_localStorage:20260409⬡
+    // Don't load stale messages — let auto-init determine the correct lesson
+    // Old behavior loaded cached messages which could show Day 1 even when Day 1 is complete
+    return [];
   });
   const [input, setInput] = useState('');
   const [streaming, setStreaming] = useState(false);
@@ -1475,7 +1478,6 @@ function AppInner() {
         {interactionMode === 'voice' && (
           <VoiceConversationOrb userId={user?.email} onSwitchToChat={(voiceTranscript) => {
             // ⬡B:GMGU.dev:FEAT:voice_to_chat_sync:20260409⬡
-            // When switching back from voice, inject voice transcript into chat
             if (voiceTranscript && voiceTranscript.length > 0) {
               const voiceMsgs = voiceTranscript.map(t => ({
                 role: t.from === 'aba' ? 'aba' : 'user',
@@ -1487,6 +1489,25 @@ function AppInner() {
                 { role: 'aba', text: '(Voice conversation captured)', time: Date.now(), source: 'system' },
                 ...voiceMsgs
               ]);
+              
+              // ⬡B:GMGU.dev:FIX:voice_lesson_completion:20260409⬡
+              // If the voice conversation had 4+ exchanges (2+ from user, 2+ from ABA),
+              // mark the current lesson as complete. This covers the gap where VARA
+              // can't emit [LESSON_COMPLETE] through the ElevenLabs pipeline.
+              const userTurns = voiceTranscript.filter(t => t.from === 'user').length;
+              const abaTurns = voiceTranscript.filter(t => t.from === 'aba').length;
+              if (userTurns >= 2 && abaTurns >= 2 && currentLesson) {
+                const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
+                if (!(profile?.completedDays || []).includes(key)) {
+                  fetch(Q + '/api/gmg-university/progress', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: profile?.email, completedKey: key })
+                  }).then(r => r.json()).then(updated => {
+                    setProfile(p => ({ ...p, ...updated }));
+                    setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day });
+                  }).catch(e => console.error('[GMG-U] Voice completion save:', e.message));
+                }
+              }
             }
             setInteractionMode('chat');
           }} />
