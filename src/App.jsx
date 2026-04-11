@@ -692,19 +692,11 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         ).join('\n');
         
         const convId = 'gmgu_voice_' + Date.now();
-        // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
-        const isAssessment = currentLesson?.block === 0;
-        const voiceFirstMsg = currentLesson
-          ? (isAssessment 
-              ? `Alright Boss, Day ${currentLesson.day}: ${currentLesson.title}. Let me ask you something.`
-              : `Alright Boss, Block ${currentLesson.block} Day ${currentLesson.day}: ${currentLesson.title}. Let's get into it.`)
-          : null;
         await fetch('https://abacia-services.onrender.com/vara/preload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             userId, 
             conversation_id: convId,
-            firstMessage: voiceFirstMsg, // patches ElevenLabs agent first_message server-side
             appContext: {
               mode: 'gmg-university',
               instructions: 'You are ABA conducting a GMG University lesson. ' +
