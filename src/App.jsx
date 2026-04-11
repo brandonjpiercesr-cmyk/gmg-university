@@ -1203,6 +1203,9 @@ function AppInner() {
     if (!msg || streaming) return;
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    // ⬡B:GMGU.standalone:FIX:auto_chat_mode:20260411⬡
+    // If user types without selecting mode, auto-set to chat
+    if (!interactionMode) setInteractionMode('chat');
     streamFromAIR(msg);
   }
 
@@ -1605,7 +1608,6 @@ function AppInner() {
         })}
 
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
-        <div ref={endRef}/>
 
         {/* ⬡B:GMGU.layered:FEAT:dual_track_selector:20260410⬡ */}
         {/* Dual-track picker for founding line — LAYERED + Block 1 */}
@@ -1616,7 +1618,7 @@ function AppInner() {
               setCurrentLesson(t);
               window.__gmgu_dual_track = null;
               const name = profile?.name?.split(' ')[0] || 'there';
-              streamFromAIR(name + ' here. I want to do Block 0 Day ' + t.day + ': "' + t.title + '". This is a LAYERED assessment day. Proceed with my assessment.', true);
+              streamFromAIR(name + ' here. Block 0 Day ' + t.day + ': "' + t.title + '". Have a natural conversation with me about this. No numbered questions, no headers, no horizontal rules. Just talk to me like a mentor would.', true);
             }} style={{
               flex: 1, maxWidth: 220, padding: '14px 16px', borderRadius: 14,
               border: '1px solid rgba(251,191,36,.3)', background: 'rgba(251,191,36,.08)',
@@ -1672,6 +1674,8 @@ function AppInner() {
             </button>
           </div>
         )}
+
+        <div ref={endRef}/>
 
         {/* Voice conversation mode — ElevenLabs push-to-talk orb */}
         {interactionMode === 'voice' && (
