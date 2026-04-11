@@ -947,54 +947,69 @@ function AppInner() {
   }, [profile]);
 
   // ━━━ AUTO-INIT: ABA greets on login ━━━
-  // ⬡B:GMGU.layered:FIX:dual_track_init:20260410⬡
+  // ⬡B:GMGU.layered:FIX:backend_pairing_init:20260410⬡
+  // Calls /api/gmg-university/next-lessons which handles T7+ enforced pairing on the backend.
+  // No local calculation — one source of truth for all 3 frontends.
   useEffect(() => {
     if (user && profile && curriculum && !initDone && !streaming) {
       setInitDone(true);
-      const completed = profile.completedDays || [];
       const name = profile.name?.split(' ')[0] || 'there';
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+      const email = profile.email || user?.email || '';
       
-      // Find next incomplete in Block 0 (LAYERED) and Block 1 separately
-      const blocks = curriculum?.blocks || [];
-      const block0 = blocks.find(b => b.block === 0);
-      const block1 = blocks.find(b => b.block === 1);
-      let nextBlock0 = null, nextBlock1 = null;
-      if (block0) {
-        for (let i = 0; i < (block0.days || []).length; i++) {
-          const key = 'b0-d' + (i + 1);
-          if (!completed.includes(key)) { nextBlock0 = { block: 0, day: i + 1, title: block0.days[i], blockName: block0.name }; break; }
+      (async () => {
+        try {
+          const nlRes = await fetch(PROGRESS_API.replace('/progress', '/next-lessons') + '?email=' + encodeURIComponent(email));
+          if (!nlRes.ok) throw new Error('next-lessons failed');
+          const nl = await nlRes.json();
+          
+          if (nl.mode === 'paired' && nl.nextLessons.length > 1) {
+            // T7+ dual-track: show both options
+            const lessons = nl.nextLessons;
+            const b0 = lessons.find(l => l.block === 0);
+            const b1 = lessons.find(l => l.block === 1);
+            if (b0 && b1) {
+              setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two tracks for Day ${nl.currentPair}.\n\n**🧬 LAYERED Assessment** — Day ${b0.day}: ${b0.title}\n\n**📚 Nonprofit Foundations** — Day ${b1.day}: ${b1.title}\n\nBoth must be completed before Day ${nl.currentPair + 1} unlocks. Which one do you want to start with?`, time: Date.now() }]);
+              window.__gmgu_dual_track = { block0: { block: 0, day: b0.day, title: b0.title }, block1: { block: 1, day: b1.day, title: b1.title } };
+              return;
+            }
+          }
+          
+          if (nl.mode === 'paired' && nl.nextLessons.length === 1) {
+            // T7+ but only one half of the pair remains
+            const lesson = nl.nextLessons[0];
+            const isAssessment = lesson.block === 0;
+            const otherTrack = lesson.block === 0 ? 'Nonprofit Foundations' : 'LAYERED Assessment';
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You already finished your ${otherTrack} for Day ${nl.currentPair}. Now let's do the other half.\n\n**${isAssessment ? '🧬 LAYERED Assessment' : '📚 Nonprofit Foundations'}** — Day ${lesson.day}: ${lesson.title}`, time: Date.now() }]);
+            setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
+            // Don't auto-stream — show voice/chat mode selector first
+            return;
+          }
+          
+          if (nl.mode === 'single' && nl.nextLessons.length > 0) {
+            // PB or sequential
+            const lesson = nl.nextLessons[0];
+            const isAssessment = lesson.type === 'assessment';
+            let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
+            msg += ' My next ' + (isAssessment ? 'assessment' : 'lesson') + ' is Block ' + lesson.block + ' Day ' + lesson.day + ': "' + lesson.title + '". Proceed with my ' + (isAssessment ? 'assessment' : 'lesson') + '.';
+            setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
+            streamFromAIR(msg, true);
+            return;
+          }
+          
+          // mode === 'complete'
+          let msg = `Good ${greeting}, this is ${name}. I just opened GMG University. I have completed all ${curriculum?.totalDays || '?'} days.`;
+          streamFromAIR(msg, true);
+        } catch (e) {
+          console.error('[GMG-U] Next lessons:', e.message);
+          // Fallback: just start Block 0 Day 1
+          const next = getNextLesson(profile.completedDays || []);
+          let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
+          if (next) { msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + '. Proceed.'; setCurrentLesson(next); }
+          streamFromAIR(msg, true);
         }
-      }
-      if (block1) {
-        for (let i = 0; i < (block1.days || []).length; i++) {
-          const key = 'b1-d' + (i + 1);
-          if (!completed.includes(key)) { nextBlock1 = { block: 1, day: i + 1, title: block1.days[i], blockName: block1.name }; break; }
-        }
-      }
-      
-      const isFoundingLine = ['FOUNDER','INTERVIEW_MODE','FOUNDING_LINE'].includes(profile.cohort_type);
-      const hasBothTracks = isFoundingLine && nextBlock0 && nextBlock1;
-      
-      if (hasBothTracks) {
-        // Dual-track: show both options, don't auto-start either
-        setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two tracks today.\n\n**LAYERED Assessment** — Block 0 Day ${nextBlock0.day}: ${nextBlock0.title}\n\n**Nonprofit Foundations** — Block 1 Day ${nextBlock1.day}: ${nextBlock1.title}\n\nWhich one do you want to start with?`, time: Date.now() }]);
-        // Store both so the user can pick
-        window.__gmgu_dual_track = { block0: nextBlock0, block1: nextBlock1 };
-      } else {
-        // Single track — use the standard getNextLesson flow
-        const next = nextBlock0 || nextBlock1 || getNextLesson(completed);
-        let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
-        if (next) {
-          const isAssessment = next.block === 0;
-          msg += ' My next ' + (isAssessment ? 'assessment' : 'lesson') + ' is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' days. Proceed with my ' + (isAssessment ? 'assessment' : 'lesson') + '.';
-          setCurrentLesson(next);
-        } else {
-          msg += ' I have completed all ' + (curriculum?.totalDays || '?') + ' days.';
-        }
-        streamFromAIR(msg, true);
-      }
+      })();
     }
   }, [user, profile, curriculum, initDone]);
 
