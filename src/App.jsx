@@ -932,23 +932,54 @@ function AppInner() {
   }, [profile]);
 
   // ━━━ AUTO-INIT: ABA greets on login ━━━
-  // ⬡B:GMGU.standalone:FIX:wait_for_curriculum_before_init:20260408⬡
+  // ⬡B:GMGU.layered:FIX:dual_track_init:20260410⬡
   useEffect(() => {
     if (user && profile && curriculum && !initDone && !streaming) {
       setInitDone(true);
       const completed = profile.completedDays || [];
-      const next = getNextLesson(completed);
       const name = profile.name?.split(' ')[0] || 'there';
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-      let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
-      if (next) {
-        msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' lessons. Proceed with my lesson.';
-        setCurrentLesson(next);
-      } else {
-        msg += ' I have completed all ' + (curriculum?.totalDays || '?') + ' lessons.';
+      
+      // Find next incomplete in Block 0 (LAYERED) and Block 1 separately
+      const blocks = curriculum?.blocks || [];
+      const block0 = blocks.find(b => b.block === 0);
+      const block1 = blocks.find(b => b.block === 1);
+      let nextBlock0 = null, nextBlock1 = null;
+      if (block0) {
+        for (let i = 0; i < (block0.days || []).length; i++) {
+          const key = 'b0-d' + (i + 1);
+          if (!completed.includes(key)) { nextBlock0 = { block: 0, day: i + 1, title: block0.days[i], blockName: block0.name }; break; }
+        }
       }
-      streamFromAIR(msg, true);
+      if (block1) {
+        for (let i = 0; i < (block1.days || []).length; i++) {
+          const key = 'b1-d' + (i + 1);
+          if (!completed.includes(key)) { nextBlock1 = { block: 1, day: i + 1, title: block1.days[i], blockName: block1.name }; break; }
+        }
+      }
+      
+      const isFoundingLine = ['FOUNDER','INTERVIEW_MODE','FOUNDING_LINE'].includes(profile.cohort_type);
+      const hasBothTracks = isFoundingLine && nextBlock0 && nextBlock1;
+      
+      if (hasBothTracks) {
+        // Dual-track: show both options, don't auto-start either
+        setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two tracks today.\n\n**LAYERED Assessment** — Block 0 Day ${nextBlock0.day}: ${nextBlock0.title}\n\n**Nonprofit Foundations** — Block 1 Day ${nextBlock1.day}: ${nextBlock1.title}\n\nWhich one do you want to start with?`, time: Date.now() }]);
+        // Store both so the user can pick
+        window.__gmgu_dual_track = { block0: nextBlock0, block1: nextBlock1 };
+      } else {
+        // Single track — use the standard getNextLesson flow
+        const next = nextBlock0 || nextBlock1 || getNextLesson(completed);
+        let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
+        if (next) {
+          const isAssessment = next.block === 0;
+          msg += ' My next ' + (isAssessment ? 'assessment' : 'lesson') + ' is Block ' + next.block + ' Day ' + next.day + ': "' + next.title + '". I have completed ' + completed.length + ' of ' + (curriculum?.totalDays || '?') + ' days. Proceed with my ' + (isAssessment ? 'assessment' : 'lesson') + '.';
+          setCurrentLesson(next);
+        } else {
+          msg += ' I have completed all ' + (curriculum?.totalDays || '?') + ' days.';
+        }
+        streamFromAIR(msg, true);
+      }
     }
   }, [user, profile, curriculum, initDone]);
 
@@ -1467,9 +1498,48 @@ function AppInner() {
         {streaming && messages[messages.length - 1]?.text === '' && <TypingDots/>}
         <div ref={endRef}/>
 
+        {/* ⬡B:GMGU.layered:FEAT:dual_track_selector:20260410⬡ */}
+        {/* Dual-track picker for founding line — LAYERED + Block 1 */}
+        {!currentLesson && !streaming && messages.length > 0 && window.__gmgu_dual_track && (
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', padding: '12px 14px' }}>
+            <button onClick={() => {
+              const t = window.__gmgu_dual_track.block0;
+              setCurrentLesson(t);
+              window.__gmgu_dual_track = null;
+              const name = profile?.name?.split(' ')[0] || 'there';
+              streamFromAIR(name + ' here. I want to do Block 0 Day ' + t.day + ': "' + t.title + '". This is a LAYERED assessment day. Proceed with my assessment.', true);
+            }} style={{
+              flex: 1, maxWidth: 220, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(251,191,36,.3)', background: 'rgba(251,191,36,.08)',
+              color: '#fbbf24', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 6
+            }}>
+              <span style={{ fontSize: 20 }}>🧬</span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>LAYERED Assessment</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Day {window.__gmgu_dual_track.block0.day}: {window.__gmgu_dual_track.block0.title}</span>
+            </button>
+            <button onClick={() => {
+              const t = window.__gmgu_dual_track.block1;
+              setCurrentLesson(t);
+              window.__gmgu_dual_track = null;
+              const name = profile?.name?.split(' ')[0] || 'there';
+              streamFromAIR(name + ' here. I want to do Block 1 Day ' + t.day + ': "' + t.title + '". Proceed with my lesson.', true);
+            }} style={{
+              flex: 1, maxWidth: 220, padding: '14px 16px', borderRadius: 14,
+              border: '1px solid rgba(139,92,246,.3)', background: 'rgba(139,92,246,.08)',
+              color: '#a78bfa', cursor: 'pointer', display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: 6
+            }}>
+              <span style={{ fontSize: 20 }}>📚</span>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Nonprofit Foundations</span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Day {window.__gmgu_dual_track.block1.day}: {window.__gmgu_dual_track.block1.title}</span>
+            </button>
+          </div>
+        )}
+
         {/* ⬡B:GMGU.standalone:FEAT:voice_chat_mode_selector:20260409⬡ */}
         {/* Mode selector — shown after ABA's first message finishes streaming */}
-        {!interactionMode && messages.length > 0 && !streaming && messages[messages.length-1]?.role === 'aba' && (
+        {!interactionMode && currentLesson && messages.length > 0 && !streaming && messages[messages.length-1]?.role === 'aba' && (
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', padding: '20px 14px 10px' }}>
             <button onClick={() => setInteractionMode('voice')} style={{
               flex: 1, maxWidth: 200, padding: '14px 16px', borderRadius: 14,
