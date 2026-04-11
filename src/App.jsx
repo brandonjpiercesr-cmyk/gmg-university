@@ -600,35 +600,67 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
   const [orbState, setOrbState] = useState('idle');
   const [statusText, setStatusText] = useState('Tap to start voice conversation');
   const [transcript, setTranscript] = useState([]);
+  const transcriptRef = useRef([]); // mirrors state for timer closure
   const [errorMsg, setErrorMsg] = useState('');
   const [liveCaption, setLiveCaption] = useState(''); // ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡
   const [lastUserSaid, setLastUserSaid] = useState('');
   const thinkTimerRef = useRef(null);
   const currentMsgRef = useRef('');
   const captionRef = useRef(null);
+  const callTimerRef = useRef(null);
+  const callStartRef = useRef(null);
+  const [callSecondsLeft, setCallSecondsLeft] = useState(null); // null = no timer shown
 
   const conversation = useConversation({
-    onConnect: () => { setOrbState('listening'); setStatusText('Listening... share your answer'); setLiveCaption(''); },
-    onDisconnect: () => { setOrbState('idle'); setStatusText('Conversation ended'); setLiveCaption(''); },
-    onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); },
+    onConnect: () => { 
+      setOrbState('listening'); setStatusText('Listening... share your answer'); setLiveCaption('');
+      // ⬡B:VARA:FEAT:9min_autosave_timer:20260411⬡
+      // ElevenLabs Pro plan enforces ~10min per call. Save at 8.5min, warn at 9min, end at 9.5min.
+      callStartRef.current = Date.now();
+      callTimerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - callStartRef.current) / 1000);
+        const remaining = 570 - elapsed; // 9.5 min = 570s
+        if (remaining <= 90 && remaining > 0) setCallSecondsLeft(remaining);
+        if (elapsed >= 510 && elapsed < 512) {
+          // 8.5 min: preemptive save through AIR
+          const txLines = (transcriptRef.current || []).map(t => (t.from === 'aba' ? 'ABA' : 'USER') + ': ' + t.text).join('\n');
+          if (txLines.length > 50) {
+            fetch('https://abacia-services.onrender.com/api/air/process', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Save this voice call transcript before the 10-minute limit hits. Transcript:\n' + txLines.substring(0, 3000), user_id: userId || 'brandon', channel: 'vara' })
+            }).catch(() => {});
+          }
+        }
+        if (elapsed >= 570) {
+          // 9.5 min: end gracefully before ElevenLabs crashes
+          clearInterval(callTimerRef.current);
+          conversation.endSession();
+        }
+      }, 1000);
+    },
+    onDisconnect: () => { 
+      setOrbState('idle'); setStatusText('Conversation ended'); setLiveCaption('');
+      clearInterval(callTimerRef.current); setCallSecondsLeft(null);
+    },
+    onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); clearInterval(callTimerRef.current); setCallSecondsLeft(null); },
     onMessage: ({ message, source }) => {
       if (source === 'user') {
-        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; }
+        if (currentMsgRef.current) { setTranscript(p => { const n = [...p, { from: 'aba', text: currentMsgRef.current }]; transcriptRef.current = n; return n; }); currentMsgRef.current = ''; }
         setLastUserSaid(message);
-        setTranscript(p => [...p, { from: 'user', text: message }]);
+        setTranscript(p => { const n = [...p, { from: 'user', text: message }]; transcriptRef.current = n; return n; });
         setLiveCaption('');
         setOrbState('thinking'); setStatusText('ABA is thinking...');
       }
       if (source === 'ai') { 
         currentMsgRef.current += message;
-        setLiveCaption(currentMsgRef.current); // Live caption updates as ABA speaks
+        setLiveCaption(currentMsgRef.current);
       }
     },
     onModeChange: ({ mode }) => {
       clearTimeout(thinkTimerRef.current);
       if (mode === 'speaking') { setOrbState('speaking'); setStatusText('ABA is speaking...'); }
       else {
-        if (currentMsgRef.current) { setTranscript(p => [...p, { from: 'aba', text: currentMsgRef.current }]); currentMsgRef.current = ''; setLiveCaption(''); }
+        if (currentMsgRef.current) { setTranscript(p => { const n = [...p, { from: 'aba', text: currentMsgRef.current }]; transcriptRef.current = n; return n; }); currentMsgRef.current = ''; setLiveCaption(''); }
         thinkTimerRef.current = setTimeout(() => { setOrbState('listening'); setStatusText('Your turn — share your thoughts'); }, 200);
       }
     }
@@ -725,6 +757,12 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           <div style={{ width: 7, height: 7, borderRadius: '50%', background: `rgba(${c},.9)`, animation: 'mb 1s ease infinite' }} />
           <span style={{ color: `rgba(${c},.8)`, fontSize: 10, fontWeight: 600 }}>LIVE</span>
         </div>}
+        {/* ⬡B:VARA:FEAT:9min_countdown_warning:20260411⬡ */}
+        {callSecondsLeft !== null && callSecondsLeft <= 90 && (
+          <p style={{ color: callSecondsLeft <= 30 ? 'rgba(239,68,68,.9)' : 'rgba(245,158,11,.8)', fontSize: 11, fontWeight: 600, margin: '4px 0 0', textAlign: 'center' }}>
+            {callSecondsLeft <= 30 ? `⚠️ ${callSecondsLeft}s — wrapping up` : `${Math.ceil(callSecondsLeft/60)} min left`}
+          </p>
+        )}
         {conversation.status === 'connected' && <button onClick={() => conversation.endSession()} style={{ marginTop: 6, padding: '6px 18px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)', background: 'rgba(239,68,68,.06)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11, fontWeight: 500 }}>End Voice</button>}
         {errorMsg && <p style={{ color: 'rgba(239,68,68,.6)', fontSize: 10, textAlign: 'center', margin: 0 }}>{errorMsg}</p>}
       </div>
