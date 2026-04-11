@@ -641,6 +641,16 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
     onDisconnect: () => { 
       setOrbState('idle'); setStatusText('Conversation ended'); setLiveCaption('');
       clearInterval(callTimerRef.current); setCallSecondsLeft(null);
+      // ⬡B:VARA:FIX:save_voice_captions_as_messages:20260411⬡
+      // Flush any remaining ABA speech to transcript
+      if (currentMsgRef.current) { 
+        setTranscript(p => { const n = [...p, { from: 'aba', text: currentMsgRef.current }]; transcriptRef.current = n; return n; }); 
+        currentMsgRef.current = ''; 
+      }
+      // Pass transcript to parent so it persists as iMessage bubbles
+      if (transcriptRef.current.length > 0 && onSwitchToChat) {
+        onSwitchToChat(transcriptRef.current);
+      }
     },
     onError: (msg) => { setOrbState('error'); setErrorMsg(String(msg)); setStatusText('Error. Tap to retry.'); clearInterval(callTimerRef.current); setCallSecondsLeft(null); },
     onMessage: ({ message, source }) => {
@@ -682,11 +692,19 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         ).join('\n');
         
         const convId = 'gmgu_voice_' + Date.now();
+        // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
+        const isAssessment = currentLesson?.block === 0;
+        const voiceFirstMsg = currentLesson
+          ? (isAssessment 
+              ? `Alright Boss, Day ${currentLesson.day}: ${currentLesson.title}. Let me ask you something.`
+              : `Alright Boss, Block ${currentLesson.block} Day ${currentLesson.day}: ${currentLesson.title}. Let's get into it.`)
+          : null;
         await fetch('https://abacia-services.onrender.com/vara/preload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             userId, 
             conversation_id: convId,
+            firstMessage: voiceFirstMsg, // patches ElevenLabs agent first_message server-side
             appContext: {
               mode: 'gmg-university',
               instructions: 'You are ABA conducting a GMG University lesson. ' +
@@ -696,23 +714,17 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
                 (currentLesson 
                   ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
                   : ' Start with the next lesson in the curriculum.') +
-                ' Ask real-world questions. Push for depth, specifics, and stories from their actual experience. When they give an answer, summarize it back and ask a follow-up. The lesson is complete when you have captured at least 2 substantive answers with follow-ups. Keep responses to 2-3 sentences to stay conversational. Do NOT use tools like save_memory or search_brain during the voice call unless the user explicitly asks you to search or save something — tool calls cause delays that make you go silent. Just have the conversation naturally, the content gets saved automatically after the call ends.',
+                ' Ask real-world questions. Push for depth, specifics, and stories from their actual experience. When they give an answer, summarize it back and ask a follow-up. The lesson is complete when you have captured at least 2 substantive answers with follow-ups. Keep responses to 2-3 sentences to stay conversational.' +
+                ' CRITICAL: Do NOT use tools like save_memory, search_brain, send_email, or any other tools during voice calls — tool calls cause delays that make you go silent. Do NOT promise to file reports, handle emails, investigate alerts, or complete any tasks. You CANNOT do those things during a voice call. Just have the conversation naturally.' +
+                ' SECURITY: Do NOT mention financial information, bank accounts, credit cards, investment details, or any sensitive personal data during voice calls. This is an unsecured line.',
               recentChat: (recentChat || 'No prior chat.').substring(0, 600)
             }
           })
         });
       } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
-      // ⬡B:GMGU.layered:FIX:voice_first_message_override:20260411⬡
-      const isAssessment = currentLesson?.block === 0;
-      const voiceFirstMsg = currentLesson
-        ? (isAssessment 
-            ? `Hey Boss. Picking up your LAYERED assessment, Day ${currentLesson.day}: ${currentLesson.title}. Let me ask you something.`
-            : `Hey Boss. Jumping into Block ${currentLesson.block}, Day ${currentLesson.day}: ${currentLesson.title}. Let's get into it.`)
-        : 'Hey Boss, this is ABA. What do you need?';
-      await conversation.startSession({ 
-        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-        overrides: { agent: { first_message: voiceFirstMsg } }
-      });
+      // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
+      // first_message is set server-side via preload → ElevenLabs API patch
+      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
       setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
@@ -1731,10 +1743,7 @@ function AppInner() {
                 time: Date.now(),
                 source: 'voice'
               }));
-              setMessages(prev => [...prev, 
-                { role: 'aba', text: '(Voice conversation captured)', time: Date.now(), source: 'system' },
-                ...voiceMsgs
-              ]);
+              setMessages(prev => [...prev, ...voiceMsgs]);
               
               // ⬡B:GMGU.dev:FIX:voice_lesson_completion:20260409⬡
               // If the voice conversation had 4+ exchanges (2+ from user, 2+ from ABA),
