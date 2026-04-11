@@ -1561,28 +1561,33 @@ function AppInner() {
 
         {messages.map((msg, i) => {
           const isAba = msg.role === 'aba';
+          const isLast = i === messages.length - 1;
+          const prevSame = i > 0 && messages[i-1].role === msg.role;
+          const nextSame = i < messages.length - 1 && messages[i+1]?.role === msg.role;
+          // iMessage-style: tail only on LAST message of a group
+          const abaRadius = !nextSame ? '18px 18px 18px 4px' : '18px 18px 18px 12px';
+          const userRadius = !nextSame ? '18px 18px 4px 18px' : '18px 18px 12px 18px';
           return (
             <div key={i} style={{
-              display: 'flex', alignItems: 'flex-end', gap: 8,
+              display: 'flex', alignItems: 'flex-end', gap: 6,
               justifyContent: isAba ? 'flex-start' : 'flex-end',
-              padding: '3px 14px',
-              animation: i === messages.length - 1 ? 'msgIn 0.2s ease-out' : 'none'
+              padding: `${prevSame ? '1px' : '6px'} 14px 1px`,
+              animation: isLast ? 'msgIn 0.2s ease-out' : 'none'
             }}>
-              {isAba && <ABAConsciousness size={28}/>}
+              {isAba && !nextSame && <ABAConsciousness size={24}/>}
+              {isAba && nextSame && <div style={{ width: 24 }}/>}
               <div style={{
-                maxWidth: '82%', padding: '10px 14px',
-                borderRadius: isAba ? '18px 18px 18px 4px' : '18px 18px 4px 18px',
-                background: isAba ? 'rgba(255,255,255,0.07)' : 'rgba(124,58,237,0.25)',
-                border: `1px solid ${isAba ? 'rgba(255,255,255,0.06)' : 'rgba(124,58,237,0.3)'}`,
-                backdropFilter: 'blur(8px)'
+                maxWidth: '78%', padding: '9px 14px',
+                borderRadius: isAba ? abaRadius : userRadius,
+                background: isAba ? 'rgba(38,38,42,0.85)' : '#7c3aed',
+                boxShadow: '0 1px 1px rgba(0,0,0,0.08)'
               }}>
                 <div style={{ margin: 0 }}>
-                  {msg.role === 'aba' && !msg.streaming ? renderMd((msg.text || '').replace(/\[LESSON_STARTED\]/g,'').replace(/\[LESSON_COMPLETE\]/g,'').trim()) : <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14.5, lineHeight: 1.65, whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</p>}
+                  {msg.role === 'aba' && !msg.streaming ? renderMd((msg.text || '').replace(/\[LESSON_STARTED\]/g,'').replace(/\[LESSON_COMPLETE\]/g,'').trim()) : <p style={{ color: 'white', fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', margin: 0 }}>{msg.text}</p>}
                   {msg.streaming && <span style={{ display: 'inline-block', width: 2, height: 16, background: '#a78bfa', marginLeft: 2, animation: 'pulse 0.8s infinite', verticalAlign: 'text-bottom' }}/>}
-                  {msg.time && !msg.streaming && <p style={{ color: 'rgba(255,255,255,0.08)', fontSize: 9, marginTop: 4, textAlign: msg.role === 'aba' ? 'left' : 'right' }}>{new Date(msg.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>}
                   {/* ⬡B:GMGU.standalone:FEAT:read_aloud_and_voice_switch:20260409⬡ */}
                   {isAba && !msg.streaming && interactionMode === 'chat' && i === messages.length - 1 && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, paddingTop: 6 }}>
                       <button onClick={() => speakText((msg.text || '').replace(/\[.*?\]/g,'').replace(/\*\*/g,'').trim())} style={{
                         padding: '5px 10px', borderRadius: 8, border: '1px solid rgba(139,92,246,.2)',
                         background: 'rgba(139,92,246,.08)', color: 'rgba(139,92,246,.7)', cursor: 'pointer',
