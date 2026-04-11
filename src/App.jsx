@@ -732,32 +732,35 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
   }, [conversation, orbState, userId]);
 
   const colors = { idle: '139,92,246', connecting: '245,158,11', listening: '139,92,246', thinking: '245,158,11', speaking: '16,185,129', error: '239,68,68' };
+  // Auto-scroll captions
+  useEffect(() => { if (captionRef.current) captionRef.current.scrollTop = captionRef.current.scrollHeight; }, [transcript, liveCaption]);
   const c = colors[orbState] || colors.idle;
   const isActive = orbState !== 'idle' && orbState !== 'error';
   const labels = { idle: 'TAP TO TALK', connecting: 'CONNECTING', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING', error: 'ERROR' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: '30px 14px', minHeight: 280 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', padding: '16px 14px 0', gap: 0 }}>
       {/* ⬡B:GMGU.layered:UI:aba_logo_orb:20260411⬡ */}
+      {/* Orb section — compact, fixed at top */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: isActive ? 180 : 160, justifyContent: 'center' }}>
       {/* Pulsing rings */}
       {isActive && <>
-        <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', border: `1px solid rgba(${c},.12)`, animation: 'pulse 2s ease-out infinite', opacity: .5, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', border: `1px solid rgba(${c},.08)`, animation: 'pulse 2s ease-out .5s infinite', opacity: .3, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 360, height: 360, borderRadius: '50%', border: `1px solid rgba(${c},.05)`, animation: 'pulse 2s ease-out 1s infinite', opacity: .2, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 160, height: 160, borderRadius: '50%', border: `1px solid rgba(${c},.12)`, animation: 'pulse 2s ease-out infinite', opacity: .5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 220, height: 220, borderRadius: '50%', border: `1px solid rgba(${c},.08)`, animation: 'pulse 2s ease-out .5s infinite', opacity: .3, pointerEvents: 'none' }} />
       </>}
 
       {/* Main orb — ABA logo inside pulsating colored circle */}
       <button onClick={handleTap} style={{
-        width: 150, height: 150, borderRadius: '50%', border: 'none', cursor: 'pointer',
+        width: 120, height: 120, borderRadius: '50%', border: 'none', cursor: 'pointer',
         background: `radial-gradient(circle at 30% 30%, rgba(${c},.5), rgba(${c},.2))`,
-        boxShadow: `0 0 ${isActive ? 80 : 30}px rgba(${c},.4), inset 0 0 40px rgba(255,255,255,.08)`,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+        boxShadow: `0 0 ${isActive ? 60 : 20}px rgba(${c},.4), inset 0 0 30px rgba(255,255,255,.08)`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
         color: 'white', position: 'relative', zIndex: 2,
         animation: orbState === 'listening' ? 'breathe 1s ease-in-out infinite' : orbState === 'speaking' ? 'breathe 1.5s ease-in-out infinite' : 'breathe 3s ease-in-out infinite',
         transition: 'all .3s'
       }}>
         <div style={{ animation: (orbState === 'thinking' || orbState === 'connecting') ? 'spin 1s linear infinite' : 'none' }}>
-          <img src="https://i.imgur.com/0be7HCF.png" alt="ABA" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', filter: `drop-shadow(0 0 8px rgba(${c},.6))` }} />
+          <img src="https://i.imgur.com/0be7HCF.png" alt="ABA" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', filter: `drop-shadow(0 0 8px rgba(${c},.6))` }} />
         </div>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', opacity: .9 }}>{labels[orbState]}</span>
       </button>
@@ -775,55 +778,65 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
             {callSecondsLeft <= 30 ? `⚠️ ${callSecondsLeft}s — wrapping up` : `${Math.ceil(callSecondsLeft/60)} min left`}
           </p>
         )}
-        {conversation.status === 'connected' && <button onClick={() => conversation.endSession()} style={{ marginTop: 6, padding: '6px 18px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)', background: 'rgba(239,68,68,.06)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11, fontWeight: 500 }}>End Voice</button>}
+        {conversation.status === 'connected' && callSecondsLeft === null && <span style={{ color: `rgba(${c},.4)`, fontSize: 10 }}>●</span>}
         {errorMsg && <p style={{ color: 'rgba(239,68,68,.6)', fontSize: 10, textAlign: 'center', margin: 0 }}>{errorMsg}</p>}
       </div>
+      </div>{/* end orb section */}
 
-      {/* ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡ Live captions — like subtitles */}
-      {(liveCaption || lastUserSaid) && orbState !== 'idle' && (
-        <div ref={captionRef} style={{
-          width: '100%', maxHeight: 180, overflowY: 'auto',
-          background: 'rgba(0,0,0,.4)', borderRadius: 12, padding: '10px 14px',
-          backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,.06)'
-        }}>
-          {lastUserSaid && orbState !== 'listening' && (
-            <p style={{ color: 'rgba(139,92,246,.6)', fontSize: 11, margin: '0 0 6px', fontStyle: 'italic' }}>
-              You: {lastUserSaid.length > 120 ? lastUserSaid.substring(lastUserSaid.length - 120) : lastUserSaid}
-            </p>
-          )}
-          {liveCaption && (
-            <p style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-              {liveCaption.length > 500 ? '...' + liveCaption.substring(liveCaption.length - 500) : liveCaption}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Voice transcript */}
-      {transcript.length > 0 && (
-        <div style={{ width: '100%', maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {transcript.map((t, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: t.from === 'aba' ? 'flex-start' : 'flex-end' }}>
-              <div style={{ maxWidth: '85%', padding: '8px 12px', borderRadius: t.from === 'aba' ? '12px 12px 12px 4px' : '12px 12px 4px 12px',
-                background: t.from === 'aba' ? 'rgba(139,92,246,.12)' : 'rgba(255,255,255,.08)',
-                color: 'rgba(255,255,255,.8)', fontSize: 12, lineHeight: 1.4 }}>
-                {t.text}
+      {/* ⬡B:GMGU.dev:FEAT:imessage_voice_captions:20260411⬡ */}
+      {/* Voice transcript as iMessage bubbles — scrolls with conversation */}
+      {(transcript.length > 0 || liveCaption || lastUserSaid) && orbState !== 'idle' && (
+        <div ref={captionRef} style={{ width: '100%', flex: 1, maxHeight: 'calc(100vh - 380px)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 8 }}>
+          {transcript.map((t, i) => {
+            const isAba = t.from === 'aba';
+            const prevSame = i > 0 && transcript[i-1].from === t.from;
+            const nextSame = i < transcript.length - 1 && transcript[i+1]?.from === t.from;
+            return (
+              <div key={i} style={{ display: 'flex', justifyContent: isAba ? 'flex-start' : 'flex-end', padding: `${prevSame ? '1px' : '4px'} 0 1px`, alignItems: 'flex-end', gap: 6 }}>
+                {isAba && !nextSame && <ABAConsciousness size={20}/>}
+                {isAba && nextSame && <div style={{ width: 20 }}/>}
+                <div style={{
+                  maxWidth: '78%', padding: '8px 12px',
+                  borderRadius: isAba
+                    ? (!nextSame ? '16px 16px 16px 4px' : '16px 16px 16px 10px')
+                    : (!nextSame ? '16px 16px 4px 16px' : '16px 16px 10px 16px'),
+                  background: isAba ? 'rgba(38,38,42,0.85)' : '#7c3aed',
+                  color: 'white', fontSize: 13.5, lineHeight: 1.5
+                }}>{t.text}</div>
+              </div>
+            );
+          })}
+          {/* Live: user's last message (while ABA is thinking) */}
+          {lastUserSaid && (orbState === 'thinking' || orbState === 'speaking') && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 0 1px' }}>
+              <div style={{ maxWidth: '78%', padding: '8px 12px', borderRadius: '16px 16px 4px 16px', background: '#7c3aed', color: 'white', fontSize: 13.5, lineHeight: 1.5, opacity: 0.7 }}>
+                {lastUserSaid.length > 150 ? lastUserSaid.substring(lastUserSaid.length - 150) : lastUserSaid}
               </div>
             </div>
-          ))}
+          )}
+          {/* Live: ABA speaking (builds up in real time) */}
+          {liveCaption && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '4px 0 1px', alignItems: 'flex-end', gap: 6 }}>
+              <ABAConsciousness size={20}/>
+              <div style={{ maxWidth: '78%', padding: '8px 12px', borderRadius: '16px 16px 16px 4px', background: 'rgba(38,38,42,0.85)', color: 'white', fontSize: 13.5, lineHeight: 1.5 }}>
+                {liveCaption.length > 500 ? '...' + liveCaption.substring(liveCaption.length - 500) : liveCaption}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Switch to chat + end conversation */}
-      <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-        <button onClick={() => onSwitchToChat(transcript)} style={{
-          padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(255,255,255,.12)',
-          background: 'rgba(255,255,255,.05)', color: 'rgba(255,255,255,.5)', cursor: 'pointer', fontSize: 11
+      {/* Bottom controls */}
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, paddingBottom: 8 }}>
+        <button onClick={() => onSwitchToChat(transcriptRef.current)} style={{
+          padding: '10px 20px', borderRadius: 20, border: 'none',
+          background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontSize: 12, fontWeight: 500
         }}>Switch to Chat</button>
         {conversation?.status === 'connected' && (
-          <button onClick={async () => { await conversation.endSession(); onSwitchToChat(transcript); }} style={{
-            padding: '8px 16px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)',
-            background: 'rgba(239,68,68,.08)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11
+          <button onClick={async () => { await conversation.endSession(); }} style={{
+            padding: '10px 20px', borderRadius: 20, border: 'none',
+            background: 'rgba(239,68,68,.12)', color: 'rgba(239,68,68,.8)', cursor: 'pointer', fontSize: 12, fontWeight: 500
           }}>End Voice</button>
         )}
       </div>
