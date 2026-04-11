@@ -679,7 +679,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         : 'Hey Boss, this is ABA. What do you need?';
       await conversation.startSession({ 
         agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-        overrides: { agent: { prompt: { prompt: '' }, firstMessage: voiceFirstMsg } }
+        overrides: { agent: { first_message: voiceFirstMsg } }
       });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
