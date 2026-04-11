@@ -783,6 +783,7 @@ function AppInner() {
   const [testMode, setTestMode] = useState({ cohort: 'INTEREST_MEMBER', track: 'PROGRAMS', block: 0, day: 1 });
   const [cohortBriefing, setCohortBriefing] = useState([]);
   const [assessments, setAssessments] = useState([]);
+  const [layeredProfiles, setLayeredProfiles] = useState([]); // ⬡B:GMGU.layered:FEAT:admin_profiles:20260410⬡
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
@@ -809,6 +810,20 @@ function AppInner() {
         const aRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?source=ilike.gmg.university.assessment.%25.block0&select=source,content,created_at&order=created_at.desc&limit=20', { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' } });
         if (aRes.ok) setAssessments(await aRes.json());
       } catch (e) { console.error('[GMG-U] Assessments:', e.message); }
+      // ⬡B:GMGU.layered:FEAT:admin_profiles:20260410⬡ Load LAYERED profiles
+      try {
+        const lpRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?memory_type=eq.layered_profile&select=source,content,created_at&order=created_at.desc&limit=20', { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' } });
+        if (lpRes.ok) setLayeredProfiles(await lpRes.json());
+      } catch (e) { console.error('[GMG-U] LAYERED profiles:', e.message); }
+      // Also load day-level scores for all users
+      try {
+        const lsRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?memory_type=eq.layered_assessment&select=source,content,created_at&order=created_at.desc&limit=50', { headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' } });
+        if (lsRes.ok) {
+          const scores = await lsRes.json();
+          // Group scores by person for display
+          if (scores.length > 0) console.log('[GMG-U] Loaded ' + scores.length + ' LAYERED day scores');
+        }
+      } catch (e) { console.error('[GMG-U] LAYERED scores:', e.message); }
     } catch (e) { console.error('[GMG-U]', e.message); }
     setAdminLoading(false);
   }
@@ -1364,6 +1379,58 @@ function AppInner() {
                     <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{(a.created_at || '').substring(0, 10)}</span>
                   </div>
                   <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, lineHeight: 1.5, margin: 0 }}>{(typeof a.content === 'string' ? a.content : JSON.stringify(a.content)).substring(0, 300)}{(typeof a.content === 'string' ? a.content : '').length > 300 ? '...' : ''}</p>
+                </div>
+              );
+            })}
+          </>}
+
+          {/* ⬡B:GMGU.layered:FEAT:admin_layered_profiles:20260410⬡ */}
+          {layeredProfiles.length > 0 && <>
+            <p style={{ color: 'rgba(251,191,36,0.8)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>LAYERED Profiles ({layeredProfiles.length})</p>
+            {layeredProfiles.map((lp, i) => {
+              const email = (lp.source || '').replace('gmg.university.layered.profile.', '');
+              let profile = lp.content;
+              try { if (typeof profile === 'string') profile = JSON.parse(profile); } catch { profile = {}; }
+              const layers = profile.layers || {};
+              const archetype = profile.configuration_archetype || profile.archetype || 'Unknown';
+              const coreBalance = profile.core_balance || {};
+              const resilience = profile.resilience_tier || '?';
+              const trackRec = profile.track_recommendation || 'Undecided';
+              return (
+                <div key={i} style={{ background: 'rgba(251,191,36,0.04)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: 12, padding: 12, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>{email}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{(lp.created_at || '').substring(0, 10)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>{archetype}</span>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>Resilience: {resilience}</span>
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>Track: {trackRec}</span>
+                  </div>
+                  {/* Layer scores bar chart */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
+                    {['Autonomy','Alignment','Strategic','Execution','Relational','Analytical','Creative'].map(layer => {
+                      const score = layers[layer.toLowerCase()] || layers[layer] || 0;
+                      return (
+                        <div key={layer} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ width: 65, fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>{layer}</span>
+                          <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', background: score >= 7 ? '#10b981' : score >= 4 ? '#fbbf24' : '#ef4444', borderRadius: 3, width: (score * 10) + '%', transition: 'width 0.3s' }}/>
+                          </div>
+                          <span style={{ width: 16, fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>{score}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* CORE balance */}
+                  {Object.keys(coreBalance).length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      {Object.entries(coreBalance).map(([k, v]) => (
+                        <span key={k} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 9, background: v >= 7 ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: v >= 7 ? '#10b981' : 'rgba(255,255,255,0.4)' }}>{k}: {v}</span>
+                      ))}
+                    </div>
+                  )}
+                  {profile.narrative && <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, lineHeight: 1.5, margin: 0 }}>{String(profile.narrative).substring(0, 250)}{String(profile.narrative).length > 250 ? '...' : ''}</p>}
                 </div>
               );
             })}
