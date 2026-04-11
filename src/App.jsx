@@ -700,9 +700,11 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
             appContext: {
               mode: 'gmg-university',
               instructions: 'You are ABA conducting a GMG University lesson. ' +
-                (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
-                  ? 'This user is a FOUNDER in INTERVIEW_MODE. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
-                  : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.') +
+                (currentLesson?.block === 0
+                  ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
+                  : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
+                    ? 'This user is a FOUNDER in INTERVIEW_MODE for the Nonprofit Foundations track. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
+                    : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.')) +
                 (currentLesson 
                   ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
                   : ' Start with the next lesson in the curriculum.') +
