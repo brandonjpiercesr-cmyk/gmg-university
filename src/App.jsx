@@ -351,6 +351,9 @@ const STYLES = `
 @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.4)}50%{box-shadow:0 0 0 12px rgba(124,58,237,0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes mb{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 
 `;
 
@@ -667,7 +670,17 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           })
         });
       } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
-      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
+      // ⬡B:GMGU.layered:FIX:voice_first_message_override:20260411⬡
+      const isAssessment = currentLesson?.block === 0;
+      const voiceFirstMsg = currentLesson
+        ? (isAssessment 
+            ? `Hey Boss. Picking up your LAYERED assessment, Day ${currentLesson.day}: ${currentLesson.title}. Let me ask you something.`
+            : `Hey Boss. Jumping into Block ${currentLesson.block}, Day ${currentLesson.day}: ${currentLesson.title}. Let's get into it.`)
+        : 'Hey Boss, this is ABA. What do you need?';
+      await conversation.startSession({ 
+        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
+        overrides: { agent: { prompt: { prompt: '' }, firstMessage: voiceFirstMsg } }
+      });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
       setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
@@ -677,30 +690,44 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
   const colors = { idle: '139,92,246', connecting: '245,158,11', listening: '139,92,246', thinking: '245,158,11', speaking: '16,185,129', error: '239,68,68' };
   const c = colors[orbState] || colors.idle;
   const isActive = orbState !== 'idle' && orbState !== 'error';
+  const labels = { idle: 'TAP TO TALK', connecting: 'CONNECTING', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING', error: 'ERROR' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 14px', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: '30px 14px', minHeight: 280 }}>
+      {/* ⬡B:GMGU.layered:UI:aba_logo_orb:20260411⬡ */}
       {/* Pulsing rings */}
       {isActive && <>
-        <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', border: `1px solid rgba(${c},.12)`, animation: 'pulse 2s ease-out infinite', opacity: .5, pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', width: 260, height: 260, borderRadius: '50%', border: `1px solid rgba(${c},.08)`, animation: 'pulse 2s ease-out .5s infinite', opacity: .3, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', border: `1px solid rgba(${c},.12)`, animation: 'pulse 2s ease-out infinite', opacity: .5, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', border: `1px solid rgba(${c},.08)`, animation: 'pulse 2s ease-out .5s infinite', opacity: .3, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', width: 360, height: 360, borderRadius: '50%', border: `1px solid rgba(${c},.05)`, animation: 'pulse 2s ease-out 1s infinite', opacity: .2, pointerEvents: 'none' }} />
       </>}
 
-      {/* Orb */}
+      {/* Main orb — ABA logo inside pulsating colored circle */}
       <button onClick={handleTap} style={{
-        width: 120, height: 120, borderRadius: '50%', border: 'none', cursor: 'pointer',
-        background: `radial-gradient(circle at 35% 35%, rgba(${c},.45), rgba(${c},.15))`,
-        boxShadow: `0 0 ${isActive ? 50 : 20}px rgba(${c},.35)`,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
-        color: 'white', transition: 'all .3s', position: 'relative', zIndex: 2
+        width: 150, height: 150, borderRadius: '50%', border: 'none', cursor: 'pointer',
+        background: `radial-gradient(circle at 30% 30%, rgba(${c},.5), rgba(${c},.2))`,
+        boxShadow: `0 0 ${isActive ? 80 : 30}px rgba(${c},.4), inset 0 0 40px rgba(255,255,255,.08)`,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+        color: 'white', position: 'relative', zIndex: 2,
+        animation: orbState === 'listening' ? 'breathe 1s ease-in-out infinite' : orbState === 'speaking' ? 'breathe 1.5s ease-in-out infinite' : 'breathe 3s ease-in-out infinite',
+        transition: 'all .3s'
       }}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={28} height={28}><rect x={9} y={2} width={6} height={11} rx={3}/><path d="M5 11a7 7 0 0014 0"/><line x1={12} y1={18} x2={12} y2={22}/></svg>
-        <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.2, opacity: .8 }}>
-          {orbState === 'idle' ? 'TAP TO START' : orbState === 'connecting' ? 'CONNECTING' : orbState === 'listening' ? 'LISTENING' : orbState === 'thinking' ? 'THINKING' : orbState === 'speaking' ? 'SPEAKING' : 'ERROR'}
-        </span>
+        <div style={{ animation: (orbState === 'thinking' || orbState === 'connecting') ? 'spin 1s linear infinite' : 'none' }}>
+          <img src="https://i.imgur.com/0be7HCF.png" alt="ABA" style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', filter: `drop-shadow(0 0 8px rgba(${c},.6))` }} />
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', opacity: .9 }}>{labels[orbState]}</span>
       </button>
-      <p style={{ color: 'rgba(255,255,255,.45)', fontSize: 11, textAlign: 'center' }}>{statusText}</p>
-      {errorMsg && <p style={{ color: 'rgba(239,68,68,.7)', fontSize: 10, textAlign: 'center' }}>{errorMsg}</p>}
+
+      {/* Status text + live indicator */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginTop: 12 }}>
+        <p style={{ color: `rgba(${c},.7)`, fontSize: 12, textAlign: 'center', margin: 0, fontWeight: 500 }}>{statusText}</p>
+        {orbState === 'listening' && <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: `rgba(${c},.9)`, animation: 'mb 1s ease infinite' }} />
+          <span style={{ color: `rgba(${c},.8)`, fontSize: 10, fontWeight: 600 }}>LIVE</span>
+        </div>}
+        {conversation.status === 'connected' && <button onClick={() => conversation.endSession()} style={{ marginTop: 6, padding: '6px 18px', borderRadius: 8, border: '1px solid rgba(239,68,68,.2)', background: 'rgba(239,68,68,.06)', color: 'rgba(239,68,68,.7)', cursor: 'pointer', fontSize: 11, fontWeight: 500 }}>End Voice</button>}
+        {errorMsg && <p style={{ color: 'rgba(239,68,68,.6)', fontSize: 10, textAlign: 'center', margin: 0 }}>{errorMsg}</p>}
+      </div>
 
       {/* ⬡B:GMGU.dev:FEAT:live_captions:20260409⬡ Live captions — like subtitles */}
       {(liveCaption || lastUserSaid) && orbState !== 'idle' && (
