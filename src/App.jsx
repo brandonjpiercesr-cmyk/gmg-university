@@ -699,6 +699,9 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
             conversation_id: convId,
             appContext: {
               mode: 'gmg-university',
+              block: currentLesson?.block,
+              day: currentLesson?.day,
+              userId: userId,
               instructions: 'You are ABA conducting a GMG University lesson. ' +
                 (currentLesson?.block === 0
                   ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
@@ -1744,7 +1747,9 @@ function AppInner() {
           <VoiceConversationOrb userId={user?.email} currentLesson={currentLesson} cohortType={profile?.cohort_type} onSwitchToChat={(voiceTranscript) => {
             // ⬡B:GMGU.dev:FEAT:voice_to_chat_sync:20260409⬡
             if (voiceTranscript && voiceTranscript.length > 0) {
-              const voiceMsgs = voiceTranscript.map(t => ({
+              const voiceMsgs = voiceTranscript
+                .filter(t => t.text && t.text.trim().length > 0)
+                .map(t => ({
                 role: t.from === 'aba' ? 'aba' : 'user',
                 text: t.text,
                 time: Date.now(),
