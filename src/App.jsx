@@ -702,6 +702,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
               block: currentLesson?.block,
               day: currentLesson?.day,
               userId: userId,
+              email: user?.email || '',
               instructions: 'You are ABA conducting a GMG University lesson. ' +
                 (currentLesson?.block === 0
                   ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
@@ -1489,40 +1490,46 @@ function AppInner() {
             })}
           </>}
 
-          {/* ⬡B:GMGU.layered:FEAT:admin_layered_profiles:20260410⬡ */}
+          {/* ⬡B:GMGU.layered:FEAT:admin_layered_profiles_v2:20260411⬡ */}
           {layeredProfiles.length > 0 && <>
             <p style={{ color: 'rgba(251,191,36,0.8)', fontSize: 11, fontWeight: 600, letterSpacing: 1.5, textTransform: 'uppercase', marginTop: 20, marginBottom: 8 }}>LAYERED Profiles ({layeredProfiles.length})</p>
             {layeredProfiles.map((lp, i) => {
-              const email = (lp.source || '').replace('gmg.university.layered.profile.', '');
+              const profileEmail = (lp.source || '').replace('layered_profile.', '').replace('gmg.university.layered.profile.', '');
               let profile = lp.content;
               try { if (typeof profile === 'string') profile = JSON.parse(profile); } catch { profile = {}; }
-              const layers = profile.layers || {};
-              const archetype = profile.configuration_archetype || profile.archetype || 'Unknown';
-              const coreBalance = profile.core_balance || {};
+              const layers = profile.layer_averages || profile.layers || {};
+              const archetype = profile.configuration_archetype || profile.archetype || null;
+              const coreBalance = profile.core_signals || profile.core_balance || {};
               const resilience = profile.resilience_tier || '?';
-              const trackRec = profile.track_recommendation || 'Undecided';
+              const daysAssessed = profile.days_assessed || 0;
+              const primaryLayer = profile.primary_layer || null;
+              const secondaryLayer = profile.secondary_layer || null;
+              const perceptionGaps = profile.perception_gaps || [];
+              const observations = profile.running_observations || [];
+              const latestNarrative = observations.length > 0 ? observations[observations.length - 1] : (profile.narrative || '');
               return (
                 <div key={i} style={{ background: 'rgba(251,191,36,0.04)', border: '1px solid rgba(251,191,36,0.15)', borderRadius: 12, padding: 12, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>{email}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{(lp.created_at || '').substring(0, 10)}</span>
+                    <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>{profileEmail}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>{daysAssessed} day{daysAssessed !== 1 ? 's' : ''} assessed</span>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>{archetype}</span>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)' }}>Resilience: {resilience}</span>
-                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>Track: {trackRec}</span>
+                    {archetype && <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>{archetype}</span>}
+                    <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: resilience === 'High' ? 'rgba(16,185,129,0.1)' : resilience === 'Moderate' ? 'rgba(251,191,36,0.1)' : 'rgba(255,255,255,0.05)', color: resilience === 'High' ? '#10b981' : resilience === 'Moderate' ? '#fbbf24' : 'rgba(255,255,255,0.5)' }}>Resilience: {resilience}</span>
+                    {primaryLayer && <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>Primary: {primaryLayer}</span>}
+                    {secondaryLayer && <span style={{ padding: '3px 8px', borderRadius: 6, fontSize: 10, background: 'rgba(139,92,246,0.08)', color: '#818cf8' }}>Secondary: {secondaryLayer}</span>}
                   </div>
                   {/* Layer scores bar chart */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8 }}>
-                    {['Autonomy','Alignment','Strategic','Execution','Relational','Analytical','Creative'].map(layer => {
-                      const score = layers[layer.toLowerCase()] || layers[layer] || 0;
+                    {['autonomy','alignment','strategic','execution','relational','analytical','creative'].map(layer => {
+                      const score = layers[layer] || 0;
                       return (
                         <div key={layer} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 65, fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'right' }}>{layer}</span>
+                          <span style={{ width: 65, fontSize: 9, color: 'rgba(255,255,255,0.4)', textAlign: 'right', textTransform: 'capitalize' }}>{layer}</span>
                           <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
                             <div style={{ height: '100%', background: score >= 7 ? '#10b981' : score >= 4 ? '#fbbf24' : '#ef4444', borderRadius: 3, width: (score * 10) + '%', transition: 'width 0.3s' }}/>
                           </div>
-                          <span style={{ width: 16, fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>{score}</span>
+                          <span style={{ width: 20, fontSize: 10, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>{score}</span>
                         </div>
                       );
                     })}
@@ -1531,11 +1538,20 @@ function AppInner() {
                   {Object.keys(coreBalance).length > 0 && (
                     <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
                       {Object.entries(coreBalance).map(([k, v]) => (
-                        <span key={k} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 9, background: v >= 7 ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: v >= 7 ? '#10b981' : 'rgba(255,255,255,0.4)' }}>{k}: {v}</span>
+                        <span key={k} style={{ padding: '2px 6px', borderRadius: 4, fontSize: 9, background: v >= 7 ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.04)', color: v >= 7 ? '#10b981' : 'rgba(255,255,255,0.4)', textTransform: 'capitalize' }}>{k}: {v}</span>
                       ))}
                     </div>
                   )}
-                  {profile.narrative && <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, lineHeight: 1.5, margin: 0 }}>{String(profile.narrative).substring(0, 250)}{String(profile.narrative).length > 250 ? '...' : ''}</p>}
+                  {/* Perception gaps */}
+                  {perceptionGaps.length > 0 && (
+                    <div style={{ marginBottom: 6 }}>
+                      <span style={{ color: 'rgba(239,68,68,0.6)', fontSize: 9, fontWeight: 600, letterSpacing: 1 }}>PERCEPTION GAPS</span>
+                      {perceptionGaps.slice(-3).map((gap, gi) => (
+                        <p key={gi} style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, lineHeight: 1.4, margin: '2px 0' }}>{gap}</p>
+                      ))}
+                    </div>
+                  )}
+                  {latestNarrative && <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, lineHeight: 1.5, margin: 0 }}>{String(latestNarrative).substring(0, 300)}{String(latestNarrative).length > 300 ? '...' : ''}</p>}
                 </div>
               );
             })}
@@ -1873,3 +1889,4 @@ function AppInner() {
 }
 
 export default function App() { return <GMGErrorBoundary><AppInner/></GMGErrorBoundary>; }
+
