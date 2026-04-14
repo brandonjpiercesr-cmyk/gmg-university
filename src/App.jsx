@@ -1053,15 +1053,13 @@ function AppInner() {
           const nl = await nlRes.json();
           
           if (nl.mode === 'paired' && nl.nextLessons.length > 1) {
-            // T7+ dual-track: show both options
-            const lessons = nl.nextLessons;
-            const b0 = lessons.find(l => l.block === 0);
-            const b1 = lessons.find(l => l.block === 1);
-            if (b0 && b1) {
-              setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two tracks for Day ${nl.currentPair}.\n\n**🧬 LAYERED Assessment** — Day ${b0.day}: ${b0.title}\n\n**📚 Nonprofit Foundations** — Day ${b1.day}: ${b1.title}\n\nBoth must be completed before Day ${nl.currentPair + 1} unlocks. Which one do you want to start with?`, time: Date.now() }]);
-              window.__gmgu_dual_track = { block0: { block: 0, day: b0.day, title: b0.title }, block1: { block: 1, day: b1.day, title: b1.title } };
-              return;
-            }
+            // ⬡B:GMGU.ux:FIX:paired_any_blocks:20260414⬡
+            // Handles LAYERED+History, LAYERED+Nonprofit, or any future pair
+            const first = nl.nextLessons[0];
+            const second = nl.nextLessons[1];
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two sessions today.\n\n**${first.title}**\n**${second.title}**\n\nWhich one first?`, time: Date.now() }]);
+            window.__gmgu_dual_track = { block0: { block: first.block, day: first.day, title: first.title }, block1: { block: second.block, day: second.day, title: second.title } };
+            return;
           }
           
           if (nl.mode === 'paired' && nl.nextLessons.length === 1) {
@@ -1069,33 +1067,30 @@ function AppInner() {
             const lesson = nl.nextLessons[0];
             const isAssessment = lesson.block === 0;
             const otherTrack = lesson.block === 0 ? 'Nonprofit Foundations' : 'LAYERED Assessment';
-            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You already finished your ${otherTrack} for Day ${nl.currentPair}. Now let's do the other half.\n\n**${isAssessment ? '🧬 LAYERED Assessment' : '📚 Nonprofit Foundations'}** — Day ${lesson.day}: ${lesson.title}`, time: Date.now() }]);
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Ready when you are.`, time: Date.now() }]);
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
             // Don't auto-stream — show voice/chat mode selector first
             return;
           }
           
           if (nl.mode === 'single' && nl.nextLessons.length > 0) {
-            // PB or sequential
             const lesson = nl.nextLessons[0];
-            const isAssessment = lesson.type === 'assessment';
-            let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
-            msg += ' My next ' + (isAssessment ? 'assessment' : 'lesson') + ' is Block ' + lesson.block + ' Day ' + lesson.day + ': "' + lesson.title + '". Proceed with my ' + (isAssessment ? 'assessment' : 'lesson') + '.';
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
-            streamFromAIR(msg, true);
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Ready when you are.`, time: Date.now() }]);
             return;
           }
           
           // mode === 'complete'
-          let msg = `Good ${greeting}, this is ${name}. I just opened GMG University. I have completed all ${curriculum?.totalDays || '?'} days.`;
-          streamFromAIR(msg, true);
+          setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have completed everything so far. Congratulations.`, time: Date.now() }]);
         } catch (e) {
           console.error('[GMG-U] Next lessons:', e.message);
-          // Fallback: just start Block 0 Day 1
           const next = getNextLesson(profile.completedDays || []);
-          let msg = `Good ${greeting}, this is ${name}. I just opened GMG University.`;
-          if (next) { msg += ' My next lesson is Block ' + next.block + ' Day ' + next.day + '. Proceed.'; setCurrentLesson(next); }
-          streamFromAIR(msg, true);
+          if (next) {
+            setCurrentLesson(next);
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Your next session is "${next.title}." Ready when you are.`, time: Date.now() }]);
+          } else {
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Welcome to GMG University.`, time: Date.now() }]);
+          }
         }
       })();
     }
@@ -1743,7 +1738,7 @@ function AppInner() {
               <span style={{ fontSize: 12, fontWeight: 600 }}>Continue with Voice</span>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Like a phone call</span>
             </button>
-            <button onClick={() => setInteractionMode('chat')} style={{
+            <button onClick={() => { setInteractionMode('chat'); const g = messages.length > 0 ? (messages[messages.length-1]?.text || '').replace(/\*\*/g,'') : ''; if (g) speakText(g.substring(0,500)); }} style={{
               flex: 1, maxWidth: 200, padding: '14px 16px', borderRadius: 14,
               border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
               color: 'rgba(255,255,255,.7)', cursor: 'pointer', display: 'flex', flexDirection: 'column',
