@@ -1052,42 +1052,35 @@ function AppInner() {
           if (!nlRes.ok) throw new Error('next-lessons failed');
           const nl = await nlRes.json();
           
+          // ⬡B:GMGU.ux:FEAT:streamed_greeting_from_air:20260414⬡
+          // Single-lesson cases: stream from AIR so ABA greets with full personality and context.
+          // Paired-2 cases: richer static message since ABA needs to present both options.
+          // Mode selector appears AFTER streaming finishes (interactionMode stays null).
+          
           if (nl.mode === 'paired' && nl.nextLessons.length > 1) {
-            // ⬡B:GMGU.ux:FIX:paired_any_blocks:20260414⬡
-            // Handles LAYERED+History, LAYERED+Nonprofit, or any future pair
             const first = nl.nextLessons[0];
             const second = nl.nextLessons[1];
-            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two sessions today.\n\n**${first.title}**\n**${second.title}**\n\nWhich one first?`, time: Date.now() }]);
+            setCurrentLesson({ block: first.block, day: first.day, title: first.title });
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have two sessions lined up today, and I want to get through both if we can.\n\n**${first.title}**\n**${second.title}**\n\nWhich one do you want to knock out first?`, time: Date.now() }]);
             window.__gmgu_dual_track = { block0: { block: first.block, day: first.day, title: first.title }, block1: { block: second.block, day: second.day, title: second.title } };
             return;
           }
           
-          if (nl.mode === 'paired' && nl.nextLessons.length === 1) {
-            // T7+ but only one half of the pair remains
-            const lesson = nl.nextLessons[0];
-            const isAssessment = lesson.block === 0;
-            const otherTrack = lesson.block === 0 ? 'Nonprofit Foundations' : 'LAYERED Assessment';
-            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Ready when you are.`, time: Date.now() }]);
-            setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
-            // Don't auto-stream — show voice/chat mode selector first
-            return;
-          }
-          
-          if (nl.mode === 'single' && nl.nextLessons.length > 0) {
+          if ((nl.mode === 'paired' && nl.nextLessons.length === 1) || (nl.mode === 'single' && nl.nextLessons.length > 0)) {
             const lesson = nl.nextLessons[0];
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
-            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Ready when you are.`, time: Date.now() }]);
+            streamFromAIR(name + ' just opened GMG University. Today\'s session is "' + lesson.title + '." Greet ' + name + ' warmly and set up what today\'s session is about, then wait for them to start.', true);
             return;
           }
           
           // mode === 'complete'
-          setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have completed everything so far. Congratulations.`, time: Date.now() }]);
+          setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. You have completed everything so far. That is a serious accomplishment, and I hope you know that.`, time: Date.now() }]);
         } catch (e) {
           console.error('[GMG-U] Next lessons:', e.message);
           const next = getNextLesson(profile.completedDays || []);
           if (next) {
             setCurrentLesson(next);
-            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Your next session is "${next.title}." Ready when you are.`, time: Date.now() }]);
+            streamFromAIR(name + ' just opened GMG University. Today\'s session is "' + next.title + '." Greet ' + name + ' warmly and set up what today\'s session is about, then wait for them to start.', true);
           } else {
             setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Welcome to GMG University.`, time: Date.now() }]);
           }
@@ -1738,7 +1731,7 @@ function AppInner() {
               <span style={{ fontSize: 12, fontWeight: 600 }}>Continue with Voice</span>
               <span style={{ fontSize: 10, color: 'rgba(255,255,255,.35)' }}>Like a phone call</span>
             </button>
-            <button onClick={() => { setInteractionMode('chat'); const g = messages.length > 0 ? (messages[messages.length-1]?.text || '').replace(/\*\*/g,'') : ''; if (g) speakText(g.substring(0,500)); }} style={{
+            <button onClick={() => setInteractionMode('chat')} style={{
               flex: 1, maxWidth: 200, padding: '14px 16px', borderRadius: 14,
               border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
               color: 'rgba(255,255,255,.7)', cursor: 'pointer', display: 'flex', flexDirection: 'column',
