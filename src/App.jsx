@@ -1069,7 +1069,7 @@ function AppInner() {
           if ((nl.mode === 'paired' && nl.nextLessons.length === 1) || (nl.mode === 'single' && nl.nextLessons.length > 0)) {
             const lesson = nl.nextLessons[0];
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
-            streamFromAIR(name + ' just opened GMG University. Today\'s session is "' + lesson.title + '." Greet ' + name + ' warmly and set up what today\'s session is about, then wait for them to start.', true);
+            streamFromAIR("Just opened GMG University. Today we are doing " + lesson.title + ". Greet me warmly and set up what we are covering, then wait for me to begin.", true);
             return;
           }
           
@@ -1080,7 +1080,7 @@ function AppInner() {
           const next = getNextLesson(profile.completedDays || []);
           if (next) {
             setCurrentLesson(next);
-            streamFromAIR(name + ' just opened GMG University. Today\'s session is "' + next.title + '." Greet ' + name + ' warmly and set up what today\'s session is about, then wait for them to start.', true);
+            streamFromAIR("Just opened GMG University. Today we are doing " + next.title + ". Greet me warmly and set up what we are covering, then wait for me to begin.", true);
           } else {
             setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Welcome to GMG University.`, time: Date.now() }]);
           }
