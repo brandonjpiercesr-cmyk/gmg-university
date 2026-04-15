@@ -627,7 +627,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           if (txLines.length > 50) {
             fetch('https://abacia-services.onrender.com/api/air/process', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: 'Save this voice call transcript before the 10-minute limit hits. Transcript:\n' + txLines.substring(0, 3000), user_id: userId || 'brandon', channel: 'vara' })
+              body: JSON.stringify({ message: 'Save this voice call transcript before the 10-minute limit hits. Transcript:\n' + txLines.substring(0, 3000), user_id: userId || 'unknown' // ⬡B:911.no_brandon_fallback:FIX:gmgu:20260415⬡, channel: 'vara' })
             }).catch(() => {});
           }
         }
