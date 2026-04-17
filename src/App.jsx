@@ -1052,10 +1052,10 @@ function AppInner() {
           if (!nlRes.ok) throw new Error('next-lessons failed');
           const nl = await nlRes.json();
           
-          // ⬡B:GMGU.ux:FEAT:streamed_greeting_from_air:20260414⬡
-          // Single-lesson cases: stream from AIR so ABA greets with full personality and context.
-          // Paired-2 cases: richer static message since ABA needs to present both options.
-          // Mode selector appears AFTER streaming finishes (interactionMode stays null).
+          // ⬡B:GMGU.ux:FIX:never_blank_init:20260416⬡
+          // Show instant static greeting FIRST (0ms), then stream from AIR (9s).
+          // When stream finishes, the response replaces the static. If stream fails,
+          // the static greeting is already there — screen is NEVER blank.
           
           if (nl.mode === 'paired' && nl.nextLessons.length > 1) {
             const first = nl.nextLessons[0];
@@ -1069,7 +1069,38 @@ function AppInner() {
           if ((nl.mode === 'paired' && nl.nextLessons.length === 1) || (nl.mode === 'single' && nl.nextLessons.length > 0)) {
             const lesson = nl.nextLessons[0];
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
-            streamFromAIR("Just opened GMG University. Today we are doing " + lesson.title + ". Greet me warmly and set up what we are covering, then wait for me to begin.", true);
+            // Instant static greeting — user sees this immediately
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Let me get everything set up for you...`, time: Date.now() }]);
+            // Then stream from AIR — replaces static when it arrives
+            try {
+              const airRes = await fetch(AIR_STREAM, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: "Just opened GMG University. Today we are doing " + lesson.title + ". Greet me warmly and set up what we are covering, then wait for me to begin.", user_id: email, userId: email, channel: 'gmg-university', conversationHistory: [] })
+              });
+              const reader = airRes.body.getReader();
+              const decoder = new TextDecoder();
+              let acc = '';
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                for (const line of decoder.decode(value, { stream: true }).split('\n').filter(l => l.startsWith('data: '))) {
+                  try {
+                    const d = JSON.parse(line.slice(6));
+                    if (d.type === 'chunk') {
+                      acc += d.text;
+                      setMessages([{ role: 'aba', text: acc, time: Date.now() }]);
+                    } else if (d.type === 'done') {
+                      const final = d.fullResponse || acc;
+                      const clean = final.replace(/\[DECK\].*?\[\/DECK\]/sg, '').replace(/\[LESSON_STARTED\]/g, '').replace(/\[LESSON_COMPLETE\]/g, '').trim();
+                      setMessages([{ role: 'aba', text: clean, time: Date.now() }]);
+                    }
+                  } catch {}
+                }
+              }
+            } catch (streamErr) {
+              // Stream failed — static greeting is already showing, so user is NOT staring at blank
+              console.log('[GMG-U] Init stream failed (static greeting visible):', streamErr.message);
+            }
             return;
           }
           
@@ -1080,7 +1111,7 @@ function AppInner() {
           const next = getNextLesson(profile.completedDays || []);
           if (next) {
             setCurrentLesson(next);
-            streamFromAIR("Just opened GMG University. Today we are doing " + next.title + ". Greet me warmly and set up what we are covering, then wait for me to begin.", true);
+            setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${next.title}." Let me get everything set up for you...`, time: Date.now() }]);
           } else {
             setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Welcome to GMG University.`, time: Date.now() }]);
           }
