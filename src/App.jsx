@@ -1391,7 +1391,9 @@ function AppInner() {
         position: 'sticky', top: 0, zIndex: 30,
         background: 'rgba(10,10,15,0.75)', backdropFilter: 'blur(24px)',
         borderBottom: '1px solid rgba(255,255,255,0.06)',
-        padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10
+        paddingTop: 'max(10px, env(safe-area-inset-top, 10px))',
+        paddingLeft: 12, paddingRight: 12, paddingBottom: 10,
+        display: 'flex', alignItems: 'center', gap: 10
       }}>
         {/* Hamburger */}
         <button onClick={() => setShowSidebar(true)} style={{
@@ -1408,7 +1410,7 @@ function AppInner() {
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ color: 'white', fontSize: 15, fontWeight: 600, margin: 0 }}>ABA</p>
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {currentLesson ? `Day ${currentLesson.day} · ${currentLesson.title}` : `${pct}% · ${totalDone}/75 lessons`}
+            {currentLesson ? currentLesson.title : `${pct}% · ${totalDone} sessions`}
           </p>
         </div>
 
