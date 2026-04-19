@@ -727,16 +727,21 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
+      // ⬡B:911.vara:FIX:preload_required_for_voice:20260419⬡
+      // If userId is missing or preload fails, DON'T start the voice session.
+      // A voice session without identity = ABA doesn't know who you are.
+      if (!userId) {
+        setOrbState('error'); setErrorMsg('Not logged in'); setStatusText('Please log in first.');
+        return;
+      }
+      let preloadOk = false;
       try {
-        // ⬡B:GMGU.vara:FIX:direct_app_context:20260409⬡
-        // Pass GMG-U context DIRECTLY in the preload call, not through AIR (timing issue).
-        // The preload endpoint injects this into the cached system prompt immediately.
         const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
           (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
         ).join('\n');
         
         const convId = 'gmgu_voice_' + Date.now();
-        await fetch('https://abacia-services.onrender.com/vara/preload', {
+        const preloadRes = await fetch('https://abacia-services.onrender.com/vara/preload', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             userId, 
@@ -763,7 +768,14 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
             }
           })
         });
-      } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
+        preloadOk = preloadRes.ok;
+        if (!preloadOk) console.error('[VOICE] Preload failed:', preloadRes.status);
+      } catch (pe) { console.error('[VOICE] Preload error:', pe.message); }
+      
+      if (!preloadOk) {
+        setOrbState('error'); setErrorMsg('Connection failed'); setStatusText('Could not connect to ABA. Try again.');
+        return;
+      }
       // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
       // first_message is set server-side via preload → ElevenLabs API patch
       await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
