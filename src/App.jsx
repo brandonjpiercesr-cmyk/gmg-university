@@ -727,35 +727,33 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
-      // ⬡B:911.vara:REBUILD:no_preload_pass_identity_directly:20260419⬡
-      // The chat path passes userId and channel to /api/air/stream in the POST body.
-      // The voice path should do the SAME thing. No preload. No separate network call.
-      // ElevenLabs customLlmExtraBody merges these fields into every /v1/chat/completions request.
+      // ⬡B:911.vara:FIX:dynamic_variables_not_custom_body:20260419⬡
+      // ElevenLabs @elevenlabs/react v0.14 doesn't support customLlmExtraBody.
+      // Use dynamicVariables instead — ElevenLabs passes these in the init-context
+      // webhook call. The init-context handler stores them in voiceSessionMap.
+      // handleChatCompletion reads from voiceSessionMap.
+      // No separate preload HTTP call. The data flows through ElevenLabs WebSocket.
       if (!userId) {
         setOrbState('error'); setErrorMsg('Not logged in'); setStatusText('Please log in first.');
         return;
       }
       
-      const voiceInstructions = 'You are ABA conducting a GMG University lesson. ' +
-        (currentLesson?.block === 0
-          ? 'This is a LAYERED assessment day. Ask scenario-based questions, watch for behavioral signals, push for depth.'
-          : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
-            ? 'This user is a FOUNDER. You are INTERVIEWING them. Their answers become curriculum.'
-            : 'This user is a STUDENT. Teach the lesson content.')) +
-        (currentLesson 
-          ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
-          : '') +
-        ' YOU drive the conversation. Cover 3-4 angles. Keep responses to 3-4 sentences. No tools during voice calls.';
-      
       await conversation.startSession({ 
         agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-        customLlmExtraBody: {
+        dynamicVariables: {
           user_id: userId,
           channel: 'gmg-university',
-          block: currentLesson?.block,
-          day: currentLesson?.day,
+          block: String(currentLesson?.block ?? ''),
+          day: String(currentLesson?.day ?? ''),
           lesson_title: currentLesson?.title || '',
-          instructions: voiceInstructions
+          instructions: 'You are ABA conducting a GMG University lesson. ' +
+            (currentLesson?.block === 0
+              ? 'LAYERED assessment day. Ask scenario-based questions, push for depth.'
+              : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE'
+                ? 'FOUNDER interview mode. Their answers become curriculum.'
+                : 'STUDENT mode. Teach the lesson.')) +
+            (currentLesson ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.' : '') +
+            ' Keep responses 3-4 sentences. No tools during voice. YOU drive the conversation.'
         }
       });
     } catch (err) {
