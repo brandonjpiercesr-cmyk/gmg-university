@@ -649,12 +649,13 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
       }
       // ⬡B:GMGU.vara:FIX:auto_complete_on_voice_end:20260418⬡
       // Voice sessions don't go through the chat stream handler that detects [LESSON_COMPLETE].
-      // When a voice session ends with 3+ turns of real conversation, mark the lesson complete.
-      // This prevents Brandon from having to manually advance after every voice lesson.
+      // When a voice session ends with 3+ turns of real conversation, mark the lesson complete
+      // AND send the transcript to the LAYERED analysis engine for grading.
       const tx = transcriptRef.current || [];
       const userTurns = tx.filter(t => t.from === 'user' && t.text && t.text.length > 5).length;
       if (userTurns >= 3 && currentLesson) {
         const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
+        // Mark complete
         fetch(PROGRESS_API, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: userId, completedKey: key })
@@ -665,6 +666,20 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
             setCurrentLesson(nextL);
             setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day, next: nextL, total: (updated.completedDays||[]).length, of: 32 });
           }
+        }).catch(() => {});
+        // ⬡B:GMGU.vara:FEAT:voice_transcript_to_grading:20260418⬡
+        // Send voice transcript to the LAYERED analysis engine for behavioral assessment.
+        // This is the same pipeline that chat sessions use — the grading engine reads the
+        // transcript, scores behavioral signals, and updates the LAYERED profile.
+        const transcriptText = tx.map(t => (t.from === 'aba' ? 'ABA: ' : 'Brandon: ') + (t.text || '')).join('\n');
+        fetch('https://abacia-services.onrender.com/api/gmg-university/analyze', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transcript: transcriptText,
+            day: currentLesson.day,
+            block: currentLesson.block,
+            email: userId
+          })
         }).catch(() => {});
       }
       // Pass transcript to parent so it persists as iMessage bubbles
