@@ -670,6 +670,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
               const nextL = getNextLesson(updated.completedDays || []);
               setCurrentLesson(nextL);
               setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day, next: nextL, total: (updated.completedDays||[]).length, of: 32 });
+              setPartialSession(null);
             }
           }).catch(() => {});
           // Send to grading engine
@@ -905,6 +906,7 @@ function AppInner() {
   const [initDone, setInitDone] = useState(false);
   const [deckContent, setDeckContent] = useState(null);
   const [lessonDone, setLessonDone] = useState(null); // {title, block, day, next}
+  const [partialSession, setPartialSession] = useState(null); // {concepts_covered, concepts_remaining, lesson, day, block}
   const [curriculum, setCurriculum] = useState(null);
   const [interactionMode, setInteractionMode] = useState(null); // null = show selector, 'chat' = iMessage, 'voice' = ElevenLabs orb
   const [adminView, setAdminView] = useState(false);
@@ -1112,6 +1114,20 @@ function AppInner() {
           if ((nl.mode === 'paired' && nl.nextLessons.length === 1) || (nl.mode === 'single' && nl.nextLessons.length > 0)) {
             const lesson = nl.nextLessons[0];
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
+            // ⬡B:GMGU.ux:FEAT:partial_session_resume_ui:20260419⬡
+            // Check if there's a partial session for this lesson (timed out previously)
+            try {
+              const hamId = email.includes('brandonjpiercesr') ? 'brandon' : email.includes('eric@globalmajority') ? 'eric' : email.includes('bryanjpiercejr') ? 'bj' : email.includes('cj.d.moore') ? 'cj' : email.includes('shields.devante') ? 'vante' : email.includes('dmurrayjr') ? 'dwayne' : email.split('@')[0];
+              const partialKey = 'gmgu.partial_session.' + hamId + '.b' + lesson.block + '-d' + lesson.day;
+              const pRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?source=eq.' + encodeURIComponent(partialKey) + '&select=content', {
+                headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' }
+              });
+              const pData = await pRes.json();
+              if (pData && pData.length > 0) {
+                const partial = typeof pData[0].content === 'string' ? JSON.parse(pData[0].content) : pData[0].content;
+                setPartialSession(partial);
+              }
+            } catch (partialErr) { /* non-fatal */ }
             // Instant static greeting — user sees this immediately
             setMessages([{ role: 'aba', text: `Good ${greeting}, ${name}. Today we are covering "${lesson.title}." Let me get everything set up for you...`, time: Date.now() }]);
             // Then stream from AIR — replaces static when it arrives
@@ -1689,6 +1705,29 @@ function AppInner() {
 
       {/* MESSAGES AREA */}
       {!adminView && <div style={{ flex: 1, overflowY: 'auto', paddingTop: 12, paddingBottom: 100, position: 'relative', zIndex: 1 }}>
+        {/* ⬡B:GMGU.ux:FEAT:resume_banner:20260419⬡ */}
+        {partialSession && (
+          <div style={{ margin: '8px 16px 12px', padding: '14px 16px', background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 14, animation: 'fadeIn 0.3s ease-out' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 16 }}>🔄</span>
+              <span style={{ color: '#a78bfa', fontSize: 13, fontWeight: 600 }}>Resume Session</span>
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
+              Your last session on "{partialSession.lesson}" was interrupted. ABA has your answers saved and will pick up where you left off.
+            </p>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {(partialSession.concepts_covered || []).map((_, i) => (
+                <div key={'done'+i} style={{ flex: 1, height: 4, borderRadius: 2, background: '#10b981' }}/>
+              ))}
+              {(partialSession.concepts_remaining || []).map((_, i) => (
+                <div key={'left'+i} style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.12)' }}/>
+              ))}
+            </div>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, margin: 0 }}>
+              {(partialSession.concepts_covered || []).length} of {(partialSession.concepts_covered || []).length + (partialSession.concepts_remaining || []).length} concepts covered
+            </p>
+          </div>
+        )}
         {messages.length === 0 && !streaming && (
           <div style={{ textAlign: 'center', padding: '48px 28px', color: 'rgba(255,255,255,0.15)' }}>
             <div style={{ marginBottom: 14, opacity: 0.6 }}><ABAConsciousness size={56}/></div>
