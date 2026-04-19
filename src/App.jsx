@@ -647,40 +647,48 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         setTranscript(p => { const n = [...p, { from: 'aba', text: currentMsgRef.current }]; transcriptRef.current = n; return n; }); 
         currentMsgRef.current = ''; 
       }
-      // ⬡B:GMGU.vara:FIX:auto_complete_on_voice_end:20260418⬡
-      // Voice sessions don't go through the chat stream handler that detects [LESSON_COMPLETE].
-      // When a voice session ends with 3+ turns of real conversation, mark the lesson complete
-      // AND send the transcript to the LAYERED analysis engine for grading.
+      // ⬡B:GMGU.vara:FIX:curriculum_driven_completion:20260419⬡
+      // Completion is driven by ABA saying [LESSON_COMPLETE] after covering all concepts.
+      // If ABA didn't say it, the session is PARTIAL — save a marker so she resumes next time.
       const tx = transcriptRef.current || [];
       const userTurns = tx.filter(t => t.from === 'user' && t.text && t.text.length > 5).length;
-      if (userTurns >= 3 && currentLesson) {
+      const abaText = tx.filter(t => t.from === 'aba').map(t => t.text || '').join(' ');
+      const lessonComplete = abaText.includes('[LESSON_COMPLETE]');
+      
+      if (currentLesson && userTurns >= 2) {
         const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
-        // Mark complete
-        fetch(PROGRESS_API, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: userId, completedKey: key })
-        }).then(r => r.ok ? r.json() : null).then(updated => {
-          if (updated) {
-            setProfile(p => ({ ...p, ...updated }));
-            const nextL = getNextLesson(updated.completedDays || []);
-            setCurrentLesson(nextL);
-            setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day, next: nextL, total: (updated.completedDays||[]).length, of: 32 });
-          }
-        }).catch(() => {});
-        // ⬡B:GMGU.vara:FEAT:voice_transcript_to_grading:20260418⬡
-        // Send voice transcript to the LAYERED analysis engine for behavioral assessment.
-        // This is the same pipeline that chat sessions use — the grading engine reads the
-        // transcript, scores behavioral signals, and updates the LAYERED profile.
-        const transcriptText = tx.map(t => (t.from === 'aba' ? 'ABA: ' : 'Brandon: ') + (t.text || '')).join('\n');
-        fetch('https://abacia-services.onrender.com/api/gmg-university/analyze', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            transcript: transcriptText,
-            day: currentLesson.day,
-            block: currentLesson.block,
-            email: userId
-          })
-        }).catch(() => {});
+        const transcriptText = tx.map(t => (t.from === 'aba' ? 'ABA: ' : 'User: ') + (t.text || '')).join('\n');
+        
+        if (lessonComplete) {
+          // ABA confirmed all concepts covered — mark complete and grade
+          fetch(PROGRESS_API, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: userId, completedKey: key })
+          }).then(r => r.ok ? r.json() : null).then(updated => {
+            if (updated) {
+              setProfile(p => ({ ...p, ...updated }));
+              const nextL = getNextLesson(updated.completedDays || []);
+              setCurrentLesson(nextL);
+              setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day, next: nextL, total: (updated.completedDays||[]).length, of: 32 });
+            }
+          }).catch(() => {});
+          // Send to grading engine
+          fetch('https://abacia-services.onrender.com/api/gmg-university/analyze', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: transcriptText, day: currentLesson.day, block: currentLesson.block, email: userId })
+          }).catch(() => {});
+          // Clean up partial session marker if it exists
+          fetch('https://abacia-services.onrender.com/api/air/process', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Delete partial session marker for ' + key, user_id: userId, channel: 'system' })
+          }).catch(() => {});
+        } else if (userTurns >= 3) {
+          // ABA didn't say [LESSON_COMPLETE] — session is partial. Save transcript for resume.
+          fetch('https://abacia-services.onrender.com/api/gmg-university/analyze', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ transcript: transcriptText, day: currentLesson.day, block: currentLesson.block, email: userId, partial: true })
+          }).catch(() => {});
+        }
       }
       // Pass transcript to parent so it persists as iMessage bubbles
       if (transcriptRef.current.length > 0 && onSwitchToChat) {
