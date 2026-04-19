@@ -727,58 +727,37 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
-      // ⬡B:911.vara:FIX:preload_required_for_voice:20260419⬡
-      // If userId is missing or preload fails, DON'T start the voice session.
-      // A voice session without identity = ABA doesn't know who you are.
+      // ⬡B:911.vara:REBUILD:no_preload_pass_identity_directly:20260419⬡
+      // The chat path passes userId and channel to /api/air/stream in the POST body.
+      // The voice path should do the SAME thing. No preload. No separate network call.
+      // ElevenLabs customLlmExtraBody merges these fields into every /v1/chat/completions request.
       if (!userId) {
         setOrbState('error'); setErrorMsg('Not logged in'); setStatusText('Please log in first.');
         return;
       }
-      let preloadOk = false;
-      try {
-        const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
-          (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
-        ).join('\n');
-        
-        const convId = 'gmgu_voice_' + Date.now();
-        const preloadRes = await fetch('https://abacia-services.onrender.com/vara/preload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId, 
-            conversation_id: convId,
-            appContext: {
-              mode: 'gmg-university',
-              block: currentLesson?.block,
-              day: currentLesson?.day,
-              userId: userId,
-              email: user?.email || '',
-              instructions: 'You are ABA conducting a GMG University lesson. ' +
-                (currentLesson?.block === 0
-                  ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
-                  : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
-                    ? 'This user is a FOUNDER in INTERVIEW_MODE for the Nonprofit Foundations track. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
-                    : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.')) +
-                (currentLesson 
-                  ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
-                  : ' Start with the next lesson in the curriculum.') +
-                ' YOU are driving this conversation. You have a plan. After each answer: acknowledge briefly, then IMMEDIATELY pivot to your next question. Never wait for the user to say "what is next" or "are we done" — YOU move things forward. Cover 3-4 different angles of the topic. When you have enough, YOU wrap it up: summarize what was covered, say goodbye, and end. Do not ask "anything else?" — just close it out. Keep each response to 3-4 sentences max. Always end your response with a new question or a clear closing statement.' +
-                ' CRITICAL: Do NOT use tools like save_memory, search_brain, send_email, or any other tools during voice calls — tool calls cause delays that make you go silent. Do NOT promise to file reports, handle emails, investigate alerts, or complete any tasks. You CANNOT do those things during a voice call. Just have the conversation naturally.' +
-                ' SECURITY: Do NOT mention financial information, bank accounts, credit cards, investment details, or any sensitive personal data during voice calls. This is an unsecured line.',
-              recentChat: (recentChat || 'No prior chat.').substring(0, 600)
-            }
-          })
-        });
-        preloadOk = preloadRes.ok;
-        if (!preloadOk) console.error('[VOICE] Preload failed:', preloadRes.status);
-      } catch (pe) { console.error('[VOICE] Preload error:', pe.message); }
       
-      if (!preloadOk) {
-        setOrbState('error'); setErrorMsg('Connection failed'); setStatusText('Could not connect to ABA. Try again.');
-        return;
-      }
-      // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
-      // first_message is set server-side via preload → ElevenLabs API patch
-      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
+      const voiceInstructions = 'You are ABA conducting a GMG University lesson. ' +
+        (currentLesson?.block === 0
+          ? 'This is a LAYERED assessment day. Ask scenario-based questions, watch for behavioral signals, push for depth.'
+          : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
+            ? 'This user is a FOUNDER. You are INTERVIEWING them. Their answers become curriculum.'
+            : 'This user is a STUDENT. Teach the lesson content.')) +
+        (currentLesson 
+          ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
+          : '') +
+        ' YOU drive the conversation. Cover 3-4 angles. Keep responses to 3-4 sentences. No tools during voice calls.';
+      
+      await conversation.startSession({ 
+        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
+        customLlmExtraBody: {
+          user_id: userId,
+          channel: 'gmg-university',
+          block: currentLesson?.block,
+          day: currentLesson?.day,
+          lesson_title: currentLesson?.title || '',
+          instructions: voiceInstructions
+        }
+      });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
       setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
