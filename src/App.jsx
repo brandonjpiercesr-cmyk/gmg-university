@@ -1323,6 +1323,22 @@ function AppInner() {
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
               // ⬡B:audra.gmg_university.L16:FIX:structured_completion_signal:20260404⬡
               displayText = displayText.replace(/\[LESSON_STARTED\]/g, '').replace(/\[LESSON_COMPLETE\]/g, '').trim(); if (final.includes('[LESSON_COMPLETE]')) markComplete();
+              // ⬡B:911.autosave:FIX:frontend_save_turn:20260419⬡
+              // Auto-save inside SSE stream handler fails silently on the server.
+              // Frontend calls a dedicated save-turn endpoint instead.
+              if (!isAutoInit && userMsg && userMsg.length > 30 && final) {
+                fetch('https://abacia-services.onrender.com/api/gmg-university/save-turn', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    email: profile?.email || user?.email || userId,
+                    user_message: userMsg,
+                    aba_response: final,
+                    block: currentLesson?.block,
+                    day: currentLesson?.day,
+                    channel: 'gmg-university'
+                  })
+                }).catch(() => {});
+              }
             }
           } catch (e) { console.error('[GMG-U]', e.message); }
         }
