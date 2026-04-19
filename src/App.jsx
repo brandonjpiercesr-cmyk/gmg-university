@@ -727,34 +727,41 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setStatusText('Connecting to ABA...');
-      // ⬡B:911.vara:FIX:dynamic_variables_not_custom_body:20260419⬡
-      // ElevenLabs @elevenlabs/react v0.14 doesn't support customLlmExtraBody.
-      // Use dynamicVariables instead — ElevenLabs passes these in the init-context
-      // webhook call. The init-context handler stores them in voiceSessionMap.
-      // handleChatCompletion reads from voiceSessionMap.
-      // No separate preload HTTP call. The data flows through ElevenLabs WebSocket.
+      // ⬡B:911.vara:FIX:lightweight_session_register:20260419⬡
+      // ElevenLabs sends NO userId, NO conversation_id, NO custom fields.
+      // We must store session context on the server BEFORE startSession.
+      // This is NOT a preload (no FCW building). Just a quick POST that writes
+      // to voiceSessionMap so handleChatCompletion can find the identity.
       if (!userId) {
         setOrbState('error'); setErrorMsg('Not logged in'); setStatusText('Please log in first.');
         return;
       }
+      try {
+        await fetch('https://abacia-services.onrender.com/vara/preload', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            userId, 
+            conversation_id: 'gmgu_' + Date.now(),
+            appContext: {
+              mode: 'gmg-university',
+              block: currentLesson?.block,
+              day: currentLesson?.day,
+              email: userId,
+              instructions: 'You are ABA conducting a GMG University lesson. ' +
+                (currentLesson?.block === 0
+                  ? 'LAYERED assessment day. Ask scenario-based questions, push for depth.'
+                  : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE'
+                    ? 'FOUNDER interview mode. Their answers become curriculum.'
+                    : 'STUDENT mode. Teach the lesson.')) +
+                (currentLesson ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.' : '') +
+                ' Keep responses 3-4 sentences. No tools during voice. YOU drive the conversation.'
+            }
+          })
+        });
+      } catch (pe) { console.log('[VOICE] Session register failed:', pe.message); }
       
       await conversation.startSession({ 
-        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-        dynamicVariables: {
-          user_id: userId,
-          channel: 'gmg-university',
-          block: String(currentLesson?.block ?? ''),
-          day: String(currentLesson?.day ?? ''),
-          lesson_title: currentLesson?.title || '',
-          instructions: 'You are ABA conducting a GMG University lesson. ' +
-            (currentLesson?.block === 0
-              ? 'LAYERED assessment day. Ask scenario-based questions, push for depth.'
-              : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE'
-                ? 'FOUNDER interview mode. Their answers become curriculum.'
-                : 'STUDENT mode. Teach the lesson.')) +
-            (currentLesson ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.' : '') +
-            ' Keep responses 3-4 sentences. No tools during voice. YOU drive the conversation.'
-        }
+        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa'
       });
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
