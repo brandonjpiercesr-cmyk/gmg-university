@@ -647,6 +647,26 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         setTranscript(p => { const n = [...p, { from: 'aba', text: currentMsgRef.current }]; transcriptRef.current = n; return n; }); 
         currentMsgRef.current = ''; 
       }
+      // ⬡B:GMGU.vara:FIX:auto_complete_on_voice_end:20260418⬡
+      // Voice sessions don't go through the chat stream handler that detects [LESSON_COMPLETE].
+      // When a voice session ends with 3+ turns of real conversation, mark the lesson complete.
+      // This prevents Brandon from having to manually advance after every voice lesson.
+      const tx = transcriptRef.current || [];
+      const userTurns = tx.filter(t => t.from === 'user' && t.text && t.text.length > 5).length;
+      if (userTurns >= 3 && currentLesson) {
+        const key = 'b' + currentLesson.block + '-d' + currentLesson.day;
+        fetch(PROGRESS_API, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userId, completedKey: key })
+        }).then(r => r.ok ? r.json() : null).then(updated => {
+          if (updated) {
+            setProfile(p => ({ ...p, ...updated }));
+            const nextL = getNextLesson(updated.completedDays || []);
+            setCurrentLesson(nextL);
+            setLessonDone({ title: currentLesson.title, block: currentLesson.block, day: currentLesson.day, next: nextL, total: (updated.completedDays||[]).length, of: 32 });
+          }
+        }).catch(() => {});
+      }
       // Pass transcript to parent so it persists as iMessage bubbles
       if (transcriptRef.current.length > 0 && onSwitchToChat) {
         onSwitchToChat(transcriptRef.current);
