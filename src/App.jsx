@@ -1111,17 +1111,39 @@ function AppInner() {
             const lesson = nl.nextLessons[0];
             setCurrentLesson({ block: lesson.block, day: lesson.day, title: lesson.title });
             // ⬡B:GMGU.ux:FEAT:partial_session_resume_ui:20260419⬡
+            // ⬡B:eric_twins_parity.kill_5th_slug_sniff:REPLACE:resolve_via_legacy_v2_ham_nodes:20260421⬡
             // Check if there's a partial session for this lesson (timed out previously)
+            //
+            // 2026-04-21 fix: previous code was the 5th copy of the hardcoded 6-HAM slug-sniff
+            // chain. Wrong for Raquel/Bethany/Chris (they fell through to email.split('@')[0]
+            // producing garbage IDs like 'raquelembritton'). Also wrong for CJ whose real email
+            // is 'cj.d.moore32@gmail.com' — the 'cj.d.moore' substring matched but for WRONG
+            // reasons.
+            //
+            // NOW: query legacy_v2_ham_nodes directly for email_primary match. Returns the
+            // canonical acl_slug (brandon/eric/bj/cj/vante/dwayne/raquel/bethany/chris). Graph
+            // table was populated 2026-04-21 with all 9 HAMs keyed by email_primary. Anon key
+            // has read access. If lookup fails (network, unknown email), skip partial_session
+            // check entirely — it's a nice-to-have UX feature, not critical path.
             try {
-              const hamId = email.includes('brandonjpiercesr') ? 'brandon' : email.includes('eric@globalmajority') ? 'eric' : email.includes('bryanjpiercejr') ? 'bj' : email.includes('cj.d.moore') ? 'cj' : email.includes('shields.devante') ? 'vante' : email.includes('dmurrayjr') ? 'dwayne' : email.split('@')[0];
-              const partialKey = 'gmgu.partial_session.' + hamId + '.b' + lesson.block + '-d' + lesson.day;
-              const pRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?source=eq.' + encodeURIComponent(partialKey) + '&select=content', {
-                headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' }
-              });
-              const pData = await pRes.json();
-              if (pData && pData.length > 0) {
-                const partial = typeof pData[0].content === 'string' ? JSON.parse(pData[0].content) : pData[0].content;
-                setPartialSession(partial);
+              let hamId = null;
+              try {
+                const hamRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/legacy_v2_ham_nodes?email_primary=eq.' + encodeURIComponent(email.toLowerCase().trim()) + '&select=acl_slug', {
+                  headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' }
+                });
+                const hamData = await hamRes.json();
+                if (Array.isArray(hamData) && hamData.length > 0) hamId = hamData[0].acl_slug;
+              } catch (hamLookupErr) { /* non-fatal — skip partial session resume */ }
+              if (hamId) {
+                const partialKey = 'gmgu.partial_session.' + hamId + '.b' + lesson.block + '-d' + lesson.day;
+                const pRes = await fetch('https://htlxjkbrstpwwtzsbyvb.supabase.co/rest/v1/aba_memory?source=eq.' + encodeURIComponent(partialKey) + '&select=content', {
+                  headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh0bHhqa2Jyc3Rwd3d0enNieXZiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1MzI4MjEsImV4cCI6MjA4NjEwODgyMX0.MOgNYkezWpgxTO3ZHd0omZ0WLJOOR-tL7hONXWG9eBw' }
+                });
+                const pData = await pRes.json();
+                if (pData && pData.length > 0) {
+                  const partial = typeof pData[0].content === 'string' ? JSON.parse(pData[0].content) : pData[0].content;
+                  setPartialSession(partial);
+                }
               }
             } catch (partialErr) { /* non-fatal */ }
             // Instant static greeting — user sees this immediately
