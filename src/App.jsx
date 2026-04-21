@@ -1320,9 +1320,20 @@ function AppInner() {
               // ⬡B:audra.gmg_university.L16:FIX:structured_completion_signal:20260404⬡
               displayText = displayText.replace(/\[LESSON_STARTED\]/g, '').replace(/\[LESSON_COMPLETE\]/g, '').trim(); if (final.includes('[LESSON_COMPLETE]')) markComplete();
               // ⬡B:911.autosave:FIX:frontend_save_turn:20260419⬡
+              // ⬡B:eric_day3_saves.frontend_fix:REMOVE_length_guard+add_error_logging:20260421⬡
               // Auto-save inside SSE stream handler fails silently on the server.
               // Frontend calls a dedicated save-turn endpoint instead.
-              if (!isAutoInit && userMsg && userMsg.length > 30 && final) {
+              //
+              // 2026-04-21 fix (Brandon: Eric's Day 3 not saving):
+              //   REMOVED: && userMsg.length > 30 — this was dropping short answers like
+              //     "yes", "go on", "Day 3 was tough", "makes sense" entirely. Eric's
+              //     Day 3 lesson answers were likely under 30 chars on at least one turn,
+              //     breaking the entire chain. No sensible reason to discard short turns.
+              //   REMOVED: .catch(() => {}) — silent failure was hiding every network
+              //     error. Now logs to console so debugging is possible.
+              //   KEPT: !isAutoInit guard — correct (don't save the greeting turn).
+              //   KEPT: userMsg && final truthiness — correct (don't save empties).
+              if (!isAutoInit && userMsg && final) {
                 fetch('https://abacia-services.onrender.com/api/gmg-university/save-turn', {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
@@ -1333,7 +1344,14 @@ function AppInner() {
                     day: currentLesson?.day,
                     channel: 'gmg-university'
                   })
-                }).catch(() => {});
+                }).then(async r => {
+                  if (!r.ok) {
+                    const t = await r.text().catch(() => '?');
+                    console.error('[GMG-U save-turn] HTTP', r.status, t.substring(0, 200));
+                  }
+                }).catch(e => {
+                  console.error('[GMG-U save-turn] network err:', e?.message || e);
+                });
               }
             }
           } catch (e) { console.error('[GMG-U]', e.message); }
