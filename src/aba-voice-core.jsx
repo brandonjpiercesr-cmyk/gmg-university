@@ -1,25 +1,36 @@
 // ⬡B:aba_shared.voice_core.vendored:gmg_university:20260422⬡
 // VENDORED COPY of aba-shared/packages/voice-core/src/index.jsx.
-// 
-// WHY VENDORED (NOT IMPORTED): Vite standalone build without workspace setup 
-// can't easily resolve a monorepo sibling package. Adding git submodule would 
-// require Render build-time submodule init. Vendoring keeps this file in sync 
-// by convention: any change to aba-shared/packages/voice-core/src/index.jsx 
-// MUST be mirrored into this file AND into the same vendored copies in 
-// MyABA/src/aba-voice-core.jsx (CIP branch) and OneABA source 
-// apps/shell/src/aba-voice-core.jsx. 
 //
-// DRIFT DETECTION: if you need to check whether this is in sync with the 
-// shared source, diff this file against the current aba-shared main:
-//   diff src/aba-voice-core.jsx <(curl -s -H 'Authorization: token <GH>' \
+// WHY VENDORED: Vite standalone build on Render without workspace setup can't
+// easily resolve a monorepo sibling package. Adding aba-shared as a git
+// submodule would require Render build-time submodule init which adds fragility.
+// Vendoring keeps this file in sync by convention: any change to
+// aba-shared/packages/voice-core/src/index.jsx MUST be mirrored into this file
+// AND the same-named vendored copies in MyABA (CIP branch, src/aba-voice-core.jsx)
+// and OneABA source (apps/shell/src/aba-voice-core.jsx).
+//
+// Each triplet's vendored file carries the same stamp so grep across all three
+// repos finds the set: `grep -r "aba_shared.voice_core:CODE:voice_orb_shared_v1"`.
+//
+// DRIFT CHECK (run on any triplet repo before editing this file):
+//   diff src/aba-voice-core.jsx <(curl -s \
+//     -H 'Authorization: token <GH_TOKEN>' \
 //     -H 'Accept: application/vnd.github.v3.raw' \
 //     'https://api.github.com/repos/brandonjpiercesr-cmyk/aba-shared/contents/packages/voice-core/src/index.jsx?ref=main')
 //
-// When Brandon changes VOICE_LABELS.mute from "Mute" to "SHUT UP": edit the 
-// aba-shared source, then copy the file to all three triplet repos. Each 
-// triplet's vendored file carries the same stamp so grepping finds them all.
+// When Brandon wants to change VOICE_LABELS.mute from "Mute" to "SHUT UP":
+//   1) Edit aba-shared/packages/voice-core/src/index.jsx (canonical)
+//   2) Copy the canonical file to all three triplet repos
+//   3) Each triplet picks up the new label on next deploy
+// All three triplets update from one canonical source because they all import
+// from their own vendored copy of the same file.
 //
-// Original stamp: ⬡B:aba_shared.voice_core:CODE:voice_orb_shared_v1:20260422⬡
+// ─────────────────────────────────────────────────────────────────────────────
+// BEGIN CANONICAL CONTENT — do not edit below this line in triplet repos.
+// Edit aba-shared/packages/voice-core/src/index.jsx and re-vendor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ⬡B:aba_shared.voice_core:CODE:voice_orb_shared_v1:20260422⬡
 // Shared voice orb for ABA triplets (gmg-university standalone + MyABA CIP + OneABA CIB).
 // One source of truth for: ElevenLabs Custom LLM wiring, preload hard-gate, 
 // conversation_id propagation, mute toggle, and ALL UI copy (button labels, 
