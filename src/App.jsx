@@ -5,6 +5,11 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡
 import { useConversation } from '@elevenlabs/react';
+// ⬡B:aba_shared.voice_core.vendored:gmg_university:IMPORT:20260422⬡
+// Vendored voice-core — shared preload hard-gate, conversation_id propagation, 
+// mute button, VOICE_LABELS. See src/aba-voice-core.jsx for the full explanation 
+// of why this is vendored and how to keep it in sync with aba-shared/packages/voice-core.
+import { preloadSession, generateConversationId, MuteButton, VOICE_LABELS } from './aba-voice-core.jsx';
 // Firestore removed — progress lives in Supabase brain via backend API
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
@@ -610,6 +615,9 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
   const callTimerRef = useRef(null);
   const callStartRef = useRef(null);
   const [callSecondsLeft, setCallSecondsLeft] = useState(null); // null = no timer shown
+  // ⬡B:voice.rebuild.state:20260422⬡ Mute + conv_id ref for voice-core integration
+  const [isMuted, setIsMuted] = useState(false);
+  const voiceConvIdRef = useRef(null);
 
   const conversation = useConversation({
     onConnect: () => { 
@@ -676,58 +684,119 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
     }
   });
 
+  // ⬡B:voice.rebuild.handleTap_hard_gate:20260422⬡
+  // THREE fixes vs prior version:
+  //   (a) Preload is now a HARD GATE via voice-core preloadSession — if it fails, 
+  //       startSession NEVER fires. Previously the try/catch swallowed preload 
+  //       failures and called startSession anyway → backend saw empty session 
+  //       store → /v1/chat/completions fell through to receptionist. Proven by 
+  //       DELETEME.chat_body 2026-04-22 10:39 showing mapSize=0 and 
+  //       sessionFound=false.
+  //   (b) Conversation_id is now propagated via ElevenLabs customLlmExtraBody. 
+  //       Backend /v1/chat/completions now reads req.body.conversation_id and 
+  //       looks up the Supabase-backed voiceSessionStore directly — no "most 
+  //       recent session" scan, no cross-HAM bleed.
+  //   (c) user?.email bug fix: the prior code read `user?.email` but `user` is 
+  //       a React state OUTSIDE VoiceConversationOrb's scope (parent component). 
+  //       The variable didn't exist here, which would throw. Use `userId` which 
+  //       IS in scope (passed via props and already contains user.email value).
   const handleTap = useCallback(async () => {
     if (orbState === 'error') { setOrbState('idle'); setStatusText('Tap to start voice conversation'); setErrorMsg(''); return; }
     if (conversation.status === 'connected') { await conversation.endSession(); return; }
+    
+    // 1. Mic permission gate FIRST
     try {
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (micErr) {
+      setOrbState('error'); setErrorMsg('Microphone denied');
+      setStatusText(micErr.name === 'NotAllowedError' ? VOICE_LABELS.micDenied : 'Microphone error. Tap to retry.');
+      return;
+    }
+    
+    // 2. Generate conversation_id. Same ID propagates end-to-end.
+    const convId = generateConversationId('gmgu');
+    voiceConvIdRef.current = convId;
+    
+    // 3. Build appContext (mirrors prior inline preload body, minus the user?.email bug).
+    const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
+      (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
+    ).join('\n');
+    const appContext = {
+      mode: 'gmg-university',
+      block: currentLesson?.block,
+      day: currentLesson?.day,
+      lesson_title: currentLesson?.title,
+      userId: userId,
+      email: userId || '',
+      instructions: 'You are ABA conducting a GMG University lesson. ' +
+        (currentLesson?.block === 0
+          ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
+          : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
+            ? 'This user is a FOUNDER in INTERVIEW_MODE for the Nonprofit Foundations track. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
+            : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.')) +
+        (currentLesson 
+          ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
+          : ' Start with the next lesson in the curriculum.') +
+        ' YOU are driving this conversation. You have a plan. After each answer: acknowledge briefly, then IMMEDIATELY pivot to your next question. Never wait for the user to say "what is next" or "are we done" — YOU move things forward. Cover 3-4 different angles of the topic. When you have enough, YOU wrap it up: summarize what was covered, say goodbye, and end. Do not ask "anything else?" — just close it out. Keep each response to 3-4 sentences max. Always end your response with a new question or a clear closing statement.' +
+        ' CRITICAL: Do NOT use tools like save_memory, search_brain, send_email, or any other tools during voice calls — tool calls cause delays that make you go silent. Do NOT promise to file reports, handle emails, investigate alerts, or complete any tasks. You CANNOT do those things during a voice call. Just have the conversation naturally.' +
+        ' SECURITY: Do NOT mention financial information, bank accounts, credit cards, investment details, or any sensitive personal data during voice calls. This is an unsecured line.',
+      recentChat: (recentChat || 'No prior chat.').substring(0, 600)
+    };
+    
+    // 4. HARD-GATE preload. If this fails, we DO NOT call startSession.
+    try {
+      setStatusText('Preparing your session...');
+      await preloadSession({
+        userId,
+        conversationId: convId,
+        appContext
+      });
+    } catch (preloadErr) {
+      setOrbState('error');
+      setErrorMsg(preloadErr.message || 'Preload failed');
+      setStatusText(VOICE_LABELS.preloadFailed);
+      console.error('[GMGU-VOICE] Preload hard-gate failed:', preloadErr);
+      return;
+    }
+    
+    // 5. Preload succeeded. Start the ElevenLabs session with conversation_id 
+    //    propagated via customLlmExtraBody → backend /v1/chat/completions will 
+    //    receive it in req.body and look up the session directly.
+    try {
       setStatusText('Connecting to ABA...');
-      try {
-        // ⬡B:GMGU.vara:FIX:direct_app_context:20260409⬡
-        // Pass GMG-U context DIRECTLY in the preload call, not through AIR (timing issue).
-        // The preload endpoint injects this into the cached system prompt immediately.
-        const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
-          (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
-        ).join('\n');
-        
-        const convId = 'gmgu_voice_' + Date.now();
-        await fetch('https://abacia-services.onrender.com/vara/preload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId, 
-            conversation_id: convId,
-            appContext: {
-              mode: 'gmg-university',
-              block: currentLesson?.block,
-              day: currentLesson?.day,
-              userId: userId,
-              email: user?.email || '',
-              instructions: 'You are ABA conducting a GMG University lesson. ' +
-                (currentLesson?.block === 0
-                  ? 'This is a LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. You are having a conversation to map their behavioral layers. Ask scenario-based questions, watch for behavioral signals in HOW they respond, and push for depth.'
-                  : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE' 
-                    ? 'This user is a FOUNDER in INTERVIEW_MODE for the Nonprofit Foundations track. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum that other students learn from.'
-                    : 'This user is a STUDENT. Teach them the lesson content, ask comprehension questions, and assess their understanding.')) +
-                (currentLesson 
-                  ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
-                  : ' Start with the next lesson in the curriculum.') +
-                ' YOU are driving this conversation. You have a plan. After each answer: acknowledge briefly, then IMMEDIATELY pivot to your next question. Never wait for the user to say "what is next" or "are we done" — YOU move things forward. Cover 3-4 different angles of the topic. When you have enough, YOU wrap it up: summarize what was covered, say goodbye, and end. Do not ask "anything else?" — just close it out. Keep each response to 3-4 sentences max. Always end your response with a new question or a clear closing statement.' +
-                ' CRITICAL: Do NOT use tools like save_memory, search_brain, send_email, or any other tools during voice calls — tool calls cause delays that make you go silent. Do NOT promise to file reports, handle emails, investigate alerts, or complete any tasks. You CANNOT do those things during a voice call. Just have the conversation naturally.' +
-                ' SECURITY: Do NOT mention financial information, bank accounts, credit cards, investment details, or any sensitive personal data during voice calls. This is an unsecured line.',
-              recentChat: (recentChat || 'No prior chat.').substring(0, 600)
-            }
-          })
-        });
-      } catch (pe) { console.log('[VOICE] Preload failed (non-fatal):', pe.message); }
-      // ⬡B:VARA:FIX:dynamic_first_message_via_preload:20260411⬡
-      // first_message is set server-side via preload → ElevenLabs API patch
-      await conversation.startSession({ agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa' });
+      await conversation.startSession({
+        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
+        customLlmExtraBody: {
+          conversation_id: convId,
+          user_id: userId,
+          app: 'gmgu'
+        },
+        dynamicVariables: {
+          conversation_id: convId,
+          user_id: userId,
+          email: userId
+        }
+      });
+      setIsMuted(false);
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
-      setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
+      setStatusText(err.name === 'NotAllowedError' ? VOICE_LABELS.micDenied : VOICE_LABELS.connectFailed);
     }
-  }, [conversation, orbState, userId]);
+  }, [conversation, orbState, userId, currentLesson, cohortType]);
+  
+  // ⬡B:voice.rebuild.mute_toggle:20260422⬡ Mute button — airport noise, intercom, etc.
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      try {
+        if (typeof conversation.setMicMuted === 'function') conversation.setMicMuted(next);
+        else if (typeof conversation.micMuted === 'function') conversation.micMuted(next);
+        else if (typeof conversation.setMuted === 'function') conversation.setMuted(next);
+      } catch {}
+      return next;
+    });
+  }, [conversation]);
 
   const colors = { idle: '139,92,246', connecting: '245,158,11', listening: '139,92,246', thinking: '245,158,11', speaking: '16,185,129', error: '239,68,68' };
   // Auto-scroll captions
@@ -824,13 +893,21 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         </div>
       )}
 
-      {/* Switch to chat + end conversation */}
+      {/* Switch to chat + mute + end conversation */}
       {/* Bottom controls */}
-      <div style={{ display: 'flex', gap: 10, marginTop: 12, paddingBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, paddingBottom: 8, alignItems: 'center' }}>
         <button onClick={() => onSwitchToChat(transcriptRef.current)} style={{
           padding: '10px 20px', borderRadius: 20, border: 'none',
           background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontSize: 12, fontWeight: 500
         }}>Switch to Chat</button>
+        {/* ⬡B:voice.rebuild.mute_button:UI:20260422⬡ Mute when airport noise, 
+             intercom, or someone walks in. Local toggle via ElevenLabs SDK 
+             setMicMuted — ABA never hears muted audio. Label and icon come 
+             from voice-core VOICE_LABELS, so changing "Mute" to "SHUT UP" 
+             only needs one edit in aba-shared and re-vendor. */}
+        {conversation?.status === 'connected' && (
+          <MuteButton isMuted={isMuted} onToggle={toggleMute} size={38} />
+        )}
         {conversation?.status === 'connected' && (
           <button onClick={async () => { await conversation.endSession(); }} style={{
             padding: '10px 20px', borderRadius: 20, border: 'none',
