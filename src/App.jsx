@@ -5,6 +5,11 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 // ⬡B:GMGU.standalone:FEAT:voice_conversation_orb:20260409⬡
 import { useConversation } from '@elevenlabs/react';
+// ⬡B:voice.rebuild.gmgu_main_forward_port:20260422⬡
+// Vendored copy of aba-shared/packages/voice-core/src/index.jsx. Shared with
+// MyABA CIP + (eventually) OneABA CIB. One source of truth for preload hard-gate,
+// conversation_id propagation, and mute UX.
+import { preloadSession, generateConversationId, MuteButton, VOICE_LABELS } from './aba-voice-core.jsx';
 // Firestore removed — progress lives in Supabase brain via backend API
 
 // ⬡B:audra.gmg_university:FIX:real_aba_logo_standalone:20260405⬡
@@ -610,6 +615,9 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
   const callTimerRef = useRef(null);
   const callStartRef = useRef(null);
   const [callSecondsLeft, setCallSecondsLeft] = useState(null); // null = no timer shown
+  // ⬡B:voice.rebuild.gmgu_main_forward_port.state:20260422⬡ Mute + conv_id ref for voice-core integration
+  const [isMuted, setIsMuted] = useState(false);
+  const voiceConvIdRef = useRef(null);
 
   const conversation = useConversation({
     onConnect: () => { 
@@ -726,48 +734,107 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
     try {
       setOrbState('connecting'); setStatusText('Requesting microphone...');
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      setStatusText('Connecting to ABA...');
-      // ⬡B:911.vara:FIX:lightweight_session_register:20260419⬡
-      // ElevenLabs sends NO userId, NO conversation_id, NO custom fields.
-      // We must store session context on the server BEFORE startSession.
-      // This is NOT a preload (no FCW building). Just a quick POST that writes
-      // to voiceSessionMap so handleChatCompletion can find the identity.
+      setStatusText('Preparing your session...');
+      // ⬡B:voice.rebuild.gmgu_main_forward_port.hard_gate:20260422⬡
+      // Forward-porting the dev branch's voice-core integration onto main WITHOUT 
+      // reverting the 19 commits of other recent voice work (autosave, resume 
+      // banner, curriculum completion, no-brandon-fallback, eric twins parity).
+      //
+      // Three things this changes vs the lightweight_session_register that was 
+      // here:
+      //   1. HARD GATE: if /vara/preload fails, we return early — we DO NOT call 
+      //      startSession. The old try/catch swallowed preload failures and 
+      //      started the WebRTC session anyway, which is the root cause of the 
+      //      2026-04-22 10:39 bug where preload errored, frontend continued, and 
+      //      /v1/chat/completions hit an empty session store → receptionist script.
+      //   2. conversation_id propagation via customLlmExtraBody. Backend 
+      //      /v1/chat/completions reads req.body.conversation_id and looks up 
+      //      vara_active_sessions (Supabase) DIRECTLY. No "most recent session 
+      //      within 5 min" scan, no cross-HAM race (the $81 bet).
+      //   3. Full appContext with lesson_title + instructions (matches what 
+      //      abacia-services 59e723188c42's handleChatCompletion reads via 
+      //      session.appContext.* for GMG-U branch activation — the $181 bet).
       if (!userId) {
         setOrbState('error'); setErrorMsg('Not logged in'); setStatusText('Please log in first.');
         return;
       }
+      const convId = generateConversationId('gmgu');
+      voiceConvIdRef.current = convId;
+      const recentChat = (window.__gmgu_messages || []).slice(-6).map(m => 
+        (m.role === 'aba' ? 'ABA: ' : 'User: ') + (m.text || '').substring(0, 300)
+      ).join('\n');
+      const appContext = {
+        mode: 'gmg-university',
+        block: currentLesson?.block,
+        day: currentLesson?.day,
+        lesson_title: currentLesson?.title,
+        userId: userId,
+        email: userId,
+        instructions: 'You are ABA conducting a GMG University lesson. ' +
+          (currentLesson?.block === 0
+            ? 'LAYERED assessment day. EVERYONE is assessed equally — founding line and Potential Brothers alike. Ask scenario-based questions, watch behavioral signals in HOW they respond, push for depth.'
+            : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE'
+              ? 'This user is a FOUNDER in INTERVIEW_MODE. You are NOT teaching them, you are INTERVIEWING them. Their answers become the curriculum.'
+              : 'This user is a STUDENT. Teach the lesson, ask comprehension questions, assess understanding.')) +
+          (currentLesson
+            ? ' You are on Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.'
+            : ' Start with the next lesson in the curriculum.') +
+          ' YOU drive the conversation. Cover 3-4 angles, then YOU wrap it up. Keep responses 3-4 sentences max. End with a question or closing statement.' +
+          ' CRITICAL: Do NOT use tools during voice calls — tool calls make you go silent. No save_memory, no send_email, nothing. Just talk.' +
+          ' SECURITY: Do NOT mention financial info, accounts, credit cards, or sensitive personal data — this is an unsecured line.',
+        recentChat: (recentChat || 'No prior chat.').substring(0, 600)
+      };
       try {
-        await fetch('https://abacia-services.onrender.com/vara/preload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            userId, 
-            conversation_id: 'gmgu_' + Date.now(),
-            appContext: {
-              mode: 'gmg-university',
-              block: currentLesson?.block,
-              day: currentLesson?.day,
-              email: userId,
-              instructions: 'You are ABA conducting a GMG University lesson. ' +
-                (currentLesson?.block === 0
-                  ? 'LAYERED assessment day. Ask scenario-based questions, push for depth.'
-                  : (cohortType === 'FOUNDER' || cohortType === 'INTERVIEW_MODE'
-                    ? 'FOUNDER interview mode. Their answers become curriculum.'
-                    : 'STUDENT mode. Teach the lesson.')) +
-                (currentLesson ? ' Block ' + currentLesson.block + ', Day ' + currentLesson.day + ': ' + currentLesson.title + '.' : '') +
-                ' Keep responses 3-4 sentences. No tools during voice. YOU drive the conversation.'
-            }
-          })
+        await preloadSession({
+          userId,
+          conversationId: convId,
+          appContext
         });
-      } catch (pe) { console.log('[VOICE] Session register failed:', pe.message); }
-      
-      await conversation.startSession({ 
-        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa'
+      } catch (preloadErr) {
+        setOrbState('error');
+        setErrorMsg(preloadErr.message || 'Preload failed');
+        setStatusText(VOICE_LABELS.preloadFailed);
+        console.error('[VOICE] Preload hard-gate failed:', preloadErr);
+        return;
+      }
+      setStatusText('Connecting to ABA...');
+      await conversation.startSession({
+        agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
+        // ⬡B:voice.rebuild.gmgu_main_forward_port.propagation:20260422⬡
+        // customLlmExtraBody travels with every /v1/chat/completions call. 
+        // Backend reads req.body.conversation_id and looks up session directly.
+        customLlmExtraBody: {
+          conversation_id: convId,
+          user_id: userId,
+          app: 'gmgu'
+        },
+        dynamicVariables: {
+          conversation_id: convId,
+          user_id: userId,
+          email: userId
+        }
       });
+      setIsMuted(false);
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');
       setStatusText(err.name === 'NotAllowedError' ? 'Microphone access denied.' : 'Connection failed. Tap to retry.');
     }
-  }, [conversation, orbState, userId]);
+  }, [conversation, orbState, userId, currentLesson, cohortType]);
+
+  // ⬡B:voice.rebuild.gmgu_main_forward_port.mute_handler:20260422⬡
+  // Mute toggle for airport noise, intercom, someone walks in. Local-first — 
+  // flips ElevenLabs SDK setMicMuted so ABA never hears the muted audio.
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      try {
+        if (typeof conversation.setMicMuted === 'function') conversation.setMicMuted(next);
+        else if (typeof conversation.micMuted === 'function') conversation.micMuted(next);
+        else if (typeof conversation.setMuted === 'function') conversation.setMuted(next);
+      } catch {}
+      return next;
+    });
+  }, [conversation]);
 
   const colors = { idle: '139,92,246', connecting: '245,158,11', listening: '139,92,246', thinking: '245,158,11', speaking: '16,185,129', error: '239,68,68' };
   // Auto-scroll captions
@@ -866,16 +933,20 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
 
       {/* Switch to chat + end conversation */}
       {/* Bottom controls */}
-      <div style={{ display: 'flex', gap: 10, marginTop: 12, paddingBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 10, marginTop: 12, paddingBottom: 8, alignItems: 'center' }}>
         <button onClick={() => onSwitchToChat(transcriptRef.current)} style={{
           padding: '10px 20px', borderRadius: 20, border: 'none',
           background: 'rgba(255,255,255,.08)', color: 'rgba(255,255,255,.6)', cursor: 'pointer', fontSize: 12, fontWeight: 500
         }}>Switch to Chat</button>
         {conversation?.status === 'connected' && (
-          <button onClick={async () => { await conversation.endSession(); }} style={{
-            padding: '10px 20px', borderRadius: 20, border: 'none',
-            background: 'rgba(239,68,68,.12)', color: 'rgba(239,68,68,.8)', cursor: 'pointer', fontSize: 12, fontWeight: 500
-          }}>End Voice</button>
+          <>
+            {/* ⬡B:voice.rebuild.gmgu_main_forward_port.mute_ui:20260422⬡ */}
+            <MuteButton isMuted={isMuted} onToggle={toggleMute} size={38} />
+            <button onClick={async () => { await conversation.endSession(); }} style={{
+              padding: '10px 20px', borderRadius: 20, border: 'none',
+              background: 'rgba(239,68,68,.12)', color: 'rgba(239,68,68,.8)', cursor: 'pointer', fontSize: 12, fontWeight: 500
+            }}>End Voice</button>
+          </>
         )}
       </div>
     </div>
