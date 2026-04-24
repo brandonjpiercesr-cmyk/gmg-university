@@ -326,9 +326,9 @@ class GMGErrorBoundary extends React.Component {
 const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", authDomain: "gmg-university.firebaseapp.com", projectId: "gmg-university", storageBucket: "gmg-university.firebasestorage.app", messagingSenderId: "85247972370", appId: "1:85247972370:web:18e62a01313037292d74cb" };
 const app = initializeApp(firebaseConfig), auth = getAuth(app);
 
-const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
-const PROGRESS_API = 'https://abacia-services.onrender.com/api/gmg-university/progress';
-const TTS_URL = 'https://abacia-services.onrender.com/api/tts/speak';
+const AIR_STREAM = 'https://abacia-dev.onrender.com/api/air/stream';
+const PROGRESS_API = 'https://abacia-dev.onrender.com/api/gmg-university/progress';
+const TTS_URL = 'https://abacia-dev.onrender.com/api/tts/speak';
 // TTS via backend proxy — no API key needed in frontend
 // ABA energy blob replaces static avatar image
 const GMG_LOGO = 'https://i.imgur.com/qslzgTU.png';
@@ -633,7 +633,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           // 8.5 min: preemptive save through AIR
           const txLines = (transcriptRef.current || []).map(t => (t.from === 'aba' ? 'ABA' : 'USER') + ': ' + t.text).join('\n');
           if (txLines.length > 50) {
-            fetch('https://abacia-services.onrender.com/api/air/process', {
+            fetch('https://abacia-dev.onrender.com/api/air/process', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ message: 'Save this voice call transcript before the 10-minute limit hits. Transcript:\n' + txLines.substring(0, 3000), user_id: userId || 'brandon', channel: 'vara' })
             }).catch(() => {});
@@ -952,7 +952,7 @@ function AppInner() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ email: '', name: '', cohort: 'INTEREST_MEMBER', track: 'UNASSIGNED', group: 'UNASSIGNED' });
 
-  const ADMIN_API = 'https://abacia-services.onrender.com/api/gmg-university/admin';
+  const ADMIN_API = 'https://abacia-dev.onrender.com/api/gmg-university/admin';
   // ⬡B:audra.gmg_university.M8:FIX:send_auth_token:20260404⬡
   const getAuthHeaders = async () => {
     try { const token = await user.getIdToken(); return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }; }

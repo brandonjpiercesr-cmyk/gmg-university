@@ -90,7 +90,7 @@ export const VOICE_LABELS = {
 
 export const VOICE_CONFIG = {
   elevenlabsAgentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-  backendBase: 'https://abacia-services.onrender.com'
+  backendBase: 'https://abacia-dev.onrender.com'
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
