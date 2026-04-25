@@ -784,8 +784,18 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           ' SECURITY: Do NOT mention financial info, accounts, credit cards, or sensitive personal data — this is an unsecured line.',
         recentChat: (recentChat || 'No prior chat.').substring(0, 600)
       };
+      // ⬡B:voice.startSession.first_message_override:FIX:auto_load_lesson_on_tap:20260425⬡
+      // Capture preload return so we can pass first_message through to ElevenLabs.
+      // Pre-fix: preloadSession was awaited but its return was discarded. The agent 
+      // used its static first_message "Hey Boss, this is ABA." and waited for user 
+      // to speak before lesson content loaded. Brandon explicitly asked: should 
+      // tap-to-talk auto-load and speak the lesson, or does user have to force it?
+      // Pre-fix answer: user had to force it. Post-fix: backend builds lesson-aware 
+      // greeting in /vara/preload, frontend reads it as preloadResult.firstMessage, 
+      // passes to startSession via overrides.agent.first_message.
+      let preloadResult;
       try {
-        await preloadSession({
+        preloadResult = await preloadSession({
           userId,
           conversationId: convId,
           appContext
@@ -798,7 +808,7 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
         return;
       }
       setStatusText('Connecting to ABA...');
-      await conversation.startSession({
+      const startConfig = {
         agentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
         // ⬡B:voice.rebuild.gmgu_main_forward_port.propagation:20260422⬡
         // customLlmExtraBody travels with every /v1/chat/completions call. 
@@ -813,7 +823,16 @@ function VoiceConversationOrb({ userId, onSwitchToChat, currentLesson, cohortTyp
           user_id: userId,
           email: userId
         }
-      });
+      };
+      // Pass lesson-aware first_message override if backend provided it
+      if (preloadResult && preloadResult.firstMessage) {
+        startConfig.overrides = {
+          agent: {
+            firstMessage: preloadResult.firstMessage
+          }
+        };
+      }
+      await conversation.startSession(startConfig);
       setIsMuted(false);
     } catch (err) {
       setOrbState('error'); setErrorMsg(err.message || 'Failed to connect');

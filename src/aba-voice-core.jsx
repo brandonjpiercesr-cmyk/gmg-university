@@ -126,7 +126,16 @@ export async function preloadSession({ userId, conversationId, appContext, backe
     hamName: data.ham || null,
     hamUid: data.ham_uid || null,
     guestMode: data.guest_mode === true,
-    resolvedVia: data.resolved_via || null
+    resolvedVia: data.resolved_via || null,
+    // ⬡B:voice.preload.first_message_passthrough:FIX:20260425⬡
+    // Backend builds a lesson-aware first_message ("Hey Brandon, picking up on Block 0 
+    // Day 5 — The Alignment Layer. What do you already know about it?") and returns it 
+    // here. Caller passes it into ElevenLabs.startSession({ overrides: { agent: { 
+    // first_message } } }) so the agent auto-speaks the lesson opener instead of the 
+    // generic "Hey Boss, this is ABA." This is what makes tap-to-talk on GMG-U 
+    // automatically launch into the lesson without the user having to say 
+    // "what are we doing today" first.
+    firstMessage: data.first_message || null
   };
 }
 
