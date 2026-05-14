@@ -1,13 +1,15 @@
-// ⬡B:aba_shared.voice_core.vendored:gmg_university:20260422⬡
+// ⬡B:aba_shared.voice_core.vendored:gmg_university:20260514⬡
 // VENDORED COPY of aba-shared/packages/voice-core/src/index.jsx.
 // Sibling vendored copies live in:
 //   myaba/src/aba-voice-core.jsx (cip branch)
-//   oneaba-source/apps/shell/src/aba-voice-core.jsx (when OneABA grows a Custom LLM orb)
+//
+// (oneaba-source uses its own voice architecture via apps/shell/src/services/voice/
+//  and apps/ccwa/src/services/voice/ — NOT a vendored sibling of aba-voice-core.)
 //
 // When the canonical file in aba-shared/packages/voice-core/src/index.jsx
 // changes, re-vendor this file IN THE SAME SESSION as updating the others.
-// Each triplet carries the same stamp so `git grep aba_shared.voice_core.vendored`
-// finds them all.
+// Each triplet carries the stamp `aba_shared.voice_core.vendored` so
+// `git grep aba_shared.voice_core.vendored` finds them all.
 //
 // ─────────────────────────────────────────────────────────────────────────────
 // BEGIN CANONICAL CONTENT — do not edit below this line in triplet repos.
@@ -74,7 +76,13 @@ export const VOICE_LABELS = {
 
 export const VOICE_CONFIG = {
   elevenlabsAgentId: 'agent_0601khe2q0gben08ws34bzf7a0sa',
-  backendBase: 'https://abacia-services.onrender.com'
+  // ⬡B:aba_shared.voice_core.backendbase_env_driven:CODE:reforge_default_legacy_fallback_removed:20260514⬡
+  // backendBase comes from VITE_ABABASE_URL env at build time, falling back to
+  // the reforge prod URL. The legacy hardcoded https://abacia-services.onrender.com
+  // was a Rule 4 doctrine violation (no hardcoded paths/values) and pointed at
+  // the LEGACY backend while reforge is the live target. Each triplet build sets
+  // its own VITE_ABABASE_URL so dev environments hit incuaba and prod hits ababase.
+  backendBase: import.meta.env.VITE_ABABASE_URL || 'https://ababase.onrender.com'
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -127,14 +135,13 @@ export async function preloadSession({ userId, conversationId, appContext, backe
     hamUid: data.ham_uid || null,
     guestMode: data.guest_mode === true,
     resolvedVia: data.resolved_via || null,
-    // ⬡B:voice.preload.first_message_passthrough:FIX:20260425⬡
-    // Backend builds a lesson-aware first_message ("Hey Brandon, picking up on Block 0 
-    // Day 5 — The Alignment Layer. What do you already know about it?") and returns it 
-    // here. Caller passes it into ElevenLabs.startSession({ overrides: { agent: { 
-    // first_message } } }) so the agent auto-speaks the lesson opener instead of the 
-    // generic "Hey Boss, this is ABA." This is what makes tap-to-talk on GMG-U 
-    // automatically launch into the lesson without the user having to say 
-    // "what are we doing today" first.
+    // ⬡B:aba_shared.voice_core.first_message_passthrough:CODE:lesson_aware_orb_opener:20260514⬡
+    // Backend may return a first_message string crafted from context (a lesson
+    // opener like "Hey Brandon, picking up on Block 0 Day 5..." or a routine
+    // greeting). Callers pass it into ElevenLabs.startSession via
+    // overrides.agent.first_message so the orb auto-speaks it instead of the
+    // generic agent opener. When the backend doesn't return one, callers can
+    // leave the override unset and the agent uses its default greeting.
     firstMessage: data.first_message || null
   };
 }
