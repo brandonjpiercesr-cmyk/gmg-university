@@ -995,6 +995,14 @@ function AppInner() {
   const [partialSession, setPartialSession] = useState(null); // {concepts_covered, concepts_remaining, lesson, day, block}
   const [curriculum, setCurriculum] = useState(null);
   const [interactionMode, setInteractionMode] = useState(null); // null = show selector, 'chat' = iMessage, 'voice' = ElevenLabs orb
+  // ⬡B:5a13525a:FEAT:conversationHistory_gap5.3:20260522⬡
+  // Gap 5.3: persistent conversation history for seer_session stamping.
+  // Appended after each exchange (user + ABA turn). Used to stamp
+  // GURU.{uid}.seer_session.{n} BEAD at /api/seer/stamp_session
+  // every 20 exchanges so GURU has persistent memory across page reloads
+  // without relying on localStorage or per-turn DB reads.
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const sessionExchangeCount = useRef(0); // counts complete user+ABA exchanges
   const [adminView, setAdminView] = useState(false);
   const [adminStudents, setAdminStudents] = useState([]);
   const [adminInterviews, setAdminInterviews] = useState([]);
