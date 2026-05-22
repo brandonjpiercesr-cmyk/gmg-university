@@ -1437,6 +1437,32 @@ function AppInner() {
                 return copy;
               });
               if (sentenceBuf.trim()) speakText(sentenceBuf.trim());
+              // ⬡B:5a13525a:FEAT:conversationHistory_append_and_stamp:20260522⬡
+              // Gap 5.3: append this exchange to conversationHistory and
+              // stamp a seer_session BEAD at every 20th exchange so GURU
+              // has persistent memory across page reloads. The stamp is
+              // fire-and-forget — non-fatal if it fails.
+              if (!isAutoInit && userMsg && final) {
+                const newPair = [
+                  { role: 'user', content: userMsg },
+                  { role: 'assistant', content: final }
+                ];
+                setConversationHistory(prev => {
+                  const updated = [...prev, ...newPair].slice(-80); // cap at 80 entries (40 exchanges)
+                  sessionExchangeCount.current += 1;
+                  if (sessionExchangeCount.current % 20 === 0) {
+                    const sessionN = Math.floor(sessionExchangeCount.current / 20);
+                    const hamUid = profile?.ham_uid || null;
+                    if (hamUid) {
+                      fetch('https://abacia-services.onrender.com/api/seer/stamp_session', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hamUid, messages: updated.slice(-40), session_number: sessionN })
+                      }).catch(e => console.warn('[GMG-U seer_session stamp] non-fatal:', e.message));
+                    }
+                  }
+                  return updated;
+                });
+              }
               // ⬡B:audra.gmg_university.L16:FIX:structured_completion_signal:20260404⬡
               displayText = displayText.replace(/\[LESSON_STARTED\]/g, '').replace(/\[LESSON_COMPLETE\]/g, '').trim(); if (final.includes('[LESSON_COMPLETE]')) markComplete();
               // ⬡B:911.autosave:FIX:frontend_save_turn:20260419⬡
