@@ -326,6 +326,11 @@ class GMGErrorBoundary extends React.Component {
 const firebaseConfig = { apiKey: "AIzaSyDCq39PympTHCU7gFlIOm6xJYbtS7Amm9g", authDomain: "gmg-university.firebaseapp.com", projectId: "gmg-university", storageBucket: "gmg-university.firebasestorage.app", messagingSenderId: "85247972370", appId: "1:85247972370:web:18e62a01313037292d74cb" };
 const app = initializeApp(firebaseConfig), auth = getAuth(app);
 
+// ⬡COLD:dead:become:GMGU_CANONICAL_CYCLE_WONDER:20260723⬡
+// CATHY.SHADOW COLD-GMGU-BODY-0095 (bead 597196): these backend endpoints are
+// hardcoded in a suspended-service frontend body. Conversion to the canonical PAI
+// cycle (entry through the real door, one voice, governed turn) is backend-contract
+// work owned by CODA, not a frontend edit. Stamped for traceability.
 const AIR_STREAM = 'https://abacia-services.onrender.com/api/air/stream';
 const PROGRESS_API = 'https://abacia-services.onrender.com/api/gmg-university/progress';
 const TTS_URL = 'https://abacia-services.onrender.com/api/tts/speak';
@@ -1369,6 +1374,11 @@ function AppInner() {
   }
 
   // ━━━ STREAM FROM AIR ━━━
+  // ⬡COLD:act:become:GMGU_CANONICAL_CYCLE_WONDER:20260723⬡
+  // CATHY.SHADOW COLD-GMGU-TURN-0096 (bead 597205): this turn pipeline streams from
+  // the AIR backend but does not run the full canonical cycle. Completing it (governed
+  // entry, council, one voice, durable turn receipt) is backend-contract work owned by
+  // CODA. Stamped for traceability.
   async function streamFromAIR(userMsg, isAutoInit = false) {
     if (streaming) return;
     setStreaming(true);
