@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="gmgu-mark-light" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#c4b5fd"/>
+      <stop offset="55%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#4c1d95"/>
+    </radialGradient>
+  </defs>
+  <path fill="url(#gmgu-mark-light)" d="M32 4c9 2 15 9 19 17 3 6 5 13 2 20-3 8-11 13-19 15-9 2-18-2-24-9-5-6-7-15-4-23 4-11 15-21 26-20z"/>
+  <path fill="#fff" opacity="0.18" d="M24 20c6-4 14-4 19 1 4 4 5 10 2 15-3 6-10 9-16 7-6-1-11-6-12-12-1-5 2-9 7-11z"/>
+</svg>

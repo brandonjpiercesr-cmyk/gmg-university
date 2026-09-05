@@ -336,8 +336,6 @@ const PROGRESS_API = 'https://abacia-services.onrender.com/api/gmg-university/pr
 const TTS_URL = 'https://abacia-services.onrender.com/api/tts/speak';
 // TTS via backend proxy — no API key needed in frontend
 // ABA energy blob replaces static avatar image
-const GMG_LOGO = 'https://i.imgur.com/qslzgTU.png';
-
 const BG_IMAGES = [
   'https://i.imgur.com/3RkebB2.jpeg',
   'https://i.imgur.com/9HZYnlX.png',
@@ -2178,4 +2176,3 @@ function AppInner() {
 }
 
 export default function App() { return <GMGErrorBoundary><AppInner/></GMGErrorBoundary>; }
-
